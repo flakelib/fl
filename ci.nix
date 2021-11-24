@@ -10,5 +10,6 @@ in {
   name = "flakes.nix";
   ci.gh-actions.enable = true;
   cache.cachix.arc.enable = true;
+  channels.nixpkgs = "21.11";
   tasks.flakegen.inputs = singleton flakegen-check;
 }
