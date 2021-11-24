@@ -2,6 +2,7 @@ env:
   CI_ALLOW_ROOT: '1'
   CI_CONFIG: ./ci.nix
   CI_PLATFORM: gh-actions
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 jobs:
   ci:
     name: flakes.nix

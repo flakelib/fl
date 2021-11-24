@@ -18,6 +18,7 @@
 in {
   name = "flakes.nix";
   ci.gh-actions.enable = true;
+  gh-actions.env.GITHUB_TOKEN = "\${{ secrets.GITHUB_TOKEN }}";
   cache.cachix.arc.enable = true;
   channels.nixpkgs = "21.11";
   tasks.flakegen.inputs = singleton flakegen-check;
