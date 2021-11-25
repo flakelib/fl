@@ -1,37 +1,36 @@
 { lib, self'lib }: with lib; let
-  inherit (self'lib) makeContext callPackageCustomized keepAttrs buildConfigWith;
+  inherit (self'lib) makeContext callPackageCustomized keepAttrs buildConfigWith supportedSystems;
   inherit (lib) systems;
 in {
   callFlake = {
     inputs
-  , packages ? null
-  , legacyPackages ? null
+  , packages ? null, defaultPackage ? null, legacyPackages ? null
   , checks ? null
-  , apps ? null
-  , lib ? null
-  , supportedSystems ? "supported"
+  , apps ? null, defaultApp ? null
+  , devShells ? null, devShell ? null
+  , lib ? null, builders ? null
+  , systems ? supportedSystems.tier2
   , config ? { }
   , ...
   }@args: let
-    flakeSystems =
-      if supportedSystems == "supported" then systems.supported.hydra
-      else if isString supportedSystems
-      then systems.doubles.${supportedSystems}
-      else supportedSystems;
+    buildAttrNames = [ "packages" "defaultPackage" "legacyPackages" "checks" "apps" "defaultApp" "devShells" "devShell" ];
+    extraArgs = removeAttrs args (buildAttrNames ++ [
+      "inputs" "lib" "builders" "systems" "config"
+    ]);
     callWith = context: targetName: target: callPackageCustomized {
       inherit context target targetName;
     };
     callWithSystem = name: system: attrs: callWith (staticContextForSystem system) name attrs;
-    callWithSystems = name: attrs: genAttrs flakeSystems (flip (callWithSystem name) attrs);
+    callWithSystems = name: attrs: genAttrs systems (flip (callWithSystem name) attrs);
     staticContext = buildConfig: makeContext {
       inherit inputs buildConfig;
     };
     buildConfigForSystem = system: buildConfigWith { inherit system; };
     staticContextForSystem = system: staticContext (buildConfigForSystem system);
-    buildAttrs = keepAttrs args [ "packages" "legacyPackages" "checks" "apps" ];
+    buildAttrs = keepAttrs args buildAttrNames;
     staticBuildAttrs = mapAttrs callWithSystems buildAttrs;
     flakes = {
-      systems = flakeSystems;
+      inherit systems;
       config = config // {
       };
       import = {
@@ -41,8 +40,9 @@ in {
         context = makeContext {
           inherit inputs buildConfig;
         };
-      in mapAttrs (callWith context) buildAttrs // {
+      in mapAttrs (callWith context) (buildAttrs // keepAttrs args [ "builders" ]) // {
         inherit flakes;
+        inherit (inputs.self) lib;
       };
     };
     staticAttrs = {
@@ -50,6 +50,14 @@ in {
       ${if args ? lib then "lib" else null} = callPackageCustomized {
         targetName = "lib";
         target = lib;
+        context = makeContext {
+          inherit inputs;
+          buildConfig = null;
+        };
+      };
+      ${if args ? builders then "builders" else null} = callPackageCustomized {
+        targetName = "builders";
+        target = builders;
         context = makeContext {
           inherit inputs;
           buildConfig = null;

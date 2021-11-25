@@ -84,7 +84,7 @@
       inherit (context) buildConfig;
     } else item.__spliced.fn;
     # do things like splicing here
-  in if item ? __spliced.fn then spliced else item;
+  in if item ? __spliced.fn then builtins.trace "aaaa" spliced else item;
 
   makeContext = {
     inputs
@@ -102,10 +102,12 @@
       inputs = mapAttrs mapInput inputs;
       scope = {
         inputs = listToAttrs (concatLists aliases) // mapAttrs (name: _:
-          context.inputs.${name} // context.inputs.${name}.packages
+          context.inputs.${name} // context.inputs.${name}.builders or { } // context.inputs.${name}.packages or { }
         ) inputs;
         global = mergeScopes [] // {
           lib = mergeScopes [ "lib" ];
+          builders = mergeScopes [ "builders" ];
+          inherit buildConfig;
         };
       };
       inherit buildConfig;

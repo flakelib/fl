@@ -1,10 +1,16 @@
-{ self'lib, pkgs }: let
+{ hello, builders'checkAssert, builders'checkCommand, lib'mainProgram }: let
+  # TODO: replace "hello" with something not in nixpkgs
 in {
-  assertions = {
-    mainProgram = mainProgram pkgs.hello == "${pkgs.hello}/bin/hello";
-    mainProgramPath = mainProgram pkgs.hello.outPath == "${pkgs.hello}/bin/hello";
+  mainProgramDrv = builders'checkAssert {
+    name = "mainProgram-drv";
+    cond = lib'mainProgram hello == "${hello}/bin/hello";
   };
-  mainProgram = checkCommand {
-    command = "${mainProgram pkgs.hello} -g hihi";
+  mainProgramPath = builders'checkAssert {
+    name = "mainProgram-path";
+    cond = lib'mainProgram hello.outPath == "${hello}/bin/hello";
+  };
+  mainProgram = builders'checkCommand {
+    name = "mainProgram-check";
+    command = "[[ $(${lib'mainProgram hello} -g hihi) = hihi ]]";
   };
 }

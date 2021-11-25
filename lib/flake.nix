@@ -2,7 +2,17 @@
   inputs = {
     nixpkgs.url = "nixpkgs"; # TODO: replace with nixlib if needed
   };
-  outputs = { self, nixpkgs, ... }@inputs: {
+  outputs = { self, nixpkgs, ... }@inputs: let
+    flake = self {
+      inherit inputs;
+      config = {
+        aliases = [ "fl" ];
+      };
+      checks = import ./checks.nix;
+      builders = import ./builders.nix;
+    };
+  in {
+    inherit (flake) flakes checks builders;
     lib = import ./lib.nix {
       callPackage = self.lib.makeCallPackage {
         buildConfig = null;
@@ -30,15 +40,5 @@
       self'lib = self.lib;
     };
     __functor = self: self.lib.callFlake;
-    flakes = {
-      config = {
-        aliases = [ "fl" ];
-      };
-      import = { buildConfig ? null }: self;
-    };
-    checks = import ./checks.nix {
-      pkgs = import nixpkgs { };
-      self'lib = self.lib;
-    };
   };
 }
