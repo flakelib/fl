@@ -47,46 +47,46 @@
       }))
     ];
   };
-  inputInputsType = { config, ... }: {
-    imports = [ inputLocationType ];
-
+  inputConfigType = { config, options, ... }: {
     options = {
       follows = mkOption {
         type = ty.nullOr ty.str;
         default = null;
       };
-
-      out.attrs = mkOption {
-        type = attrTys;
-      };
-    };
-
-    config.out.attrs = mkIf (config.follows != null) {
-      inherit (config) follows;
-    };
-  };
-  inputType = { config, ... }: {
-    imports = [ inputLocationType ];
-
-    options = {
       flake = mkOption {
         type = ty.bool;
-        default = true;
       };
+    };
+
+    config.out.attrs = mkMerge [
+      (mkIf (config.follows != null) {
+        inherit (config) follows;
+      })
+      (mkIf options.flake.isDefined {
+        inherit (config) flake;
+      })
+    ];
+  };
+  inputType = { config, ... }: {
+    imports = [ inputLocationType inputConfigType ];
+
+    options = {
       inputs = mkOption {
-        type = ty.attrsOf (ty.submodule inputInputsType);
+        type = ty.attrsOf (ty.submodule inputType);
         default = { };
       };
 
       out.attrs = mkOption {
         type = attrTys;
+        default = { };
       };
     };
 
-    config.out.attrs = mkMerge [
-      (mkIf config.flake { inherit (config) flake; })
-      (mkIf (config.inputs != { }) { inputs = mapAttrs (_: input: input.out.attrs) config.inputs; })
-    ];
+    config = {
+      out.attrs = mkMerge [
+        (mkIf (config.inputs != { }) { inputs = mapAttrs (_: input: input.out.attrs) config.inputs; })
+      ];
+    };
   };
   outputsType = { config, ... }: {
     options = {

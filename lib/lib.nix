@@ -1,5 +1,5 @@
 { callPackage }: let
-  inherit (builtins) isString;
+  inherit (builtins) isString mapAttrs intersectAttrs;
   fns = {
     # program name as defined by `nix run`
     mainProgramName = drv: drv.meta.mainProgram or drv.pname or (
@@ -17,61 +17,75 @@
       inherit localSystem crossSystem isNative;
     };
 
-    /*importInputWith = {
-      input
-    , inputs
-    , buildConfig ? system
-    , system ? throw "must provide either `system` or `buildConfig`"
-    }@args: let
-      extraArgs = removeAttrs args [ "input" "buildConfig" "system" ];
-      buildConfig' = self'lib.buildConfig buildConfig;
-      inherit (buildConfig'.localSystem) system;
-      hasFlakePackages = input ? legacyPackages.${system} || input ? packages.${system};
-      isNative = buildConfig'.isNative && hasFlakePackages;
-      useNativePackages = isNative && extraArgs == { };
-      legacyPackages = input.legacyPackages.${system} or { };
-      packages = input.packages.${system} or { };
-      importer = import input;
-      importArgs = intersectAttrs (functionArgs importer) ({
-        inherit (buildConfig') localSystem crossSystem;
-      } // inputs);
-      imported = importer (importArgs // extraArgs);
-      nativePackages = legacyPackages // packages;
-    in input // {
-      inherit input;
-      ${if isNative then "outputs" else null} = {
-        inherit packages legacyPackages;
-      };
-      buildConfig = buildConfig';
-      import = imported;
-      packages = if useNativePackages then nativePackages else imported;
-    };
 
-    importInput = { importInputWith }: input: if ! self'lib.isInput input
+    /*importInput = { importInputWith }: input: if ! self'lib.isInput input
     then importInputWith input
     else importInput {
       inherit input;
     };*/
-
-    runCommand = let
-      fn = name: args: shellCommand: shellCommand ({
-        inherit name shellCommand;
-      } // args);
-    in spliceFn fn splicer;
-
-    spliceFn = { fn, splicer }: toFunctor fn // {
-      __spliced = {
-        inherit splicer;
-      };
-    };
   };
   callfns = {
     # absolute path to `drv`'s `mainProgramName`
     mainProgram = { mainProgramName }: drv: "${drv}/bin/${mainProgramName drv}";
 
+    # the opposite of `removeAttrs`
+    keepAttrs = { nixpkgs'lib'genAttrs }: attrs: names: intersectAttrs (nixpkgs'lib'genAttrs names (_: null)) attrs;
+
     buildConfig = { buildConfigWith }: arg:
       if isString arg then buildConfigWith { system = arg; }
       else buildConfigWith arg;
+
+    callWithScope = { nixpkgs'lib'functionArgs }: scope: target: args: let
+      implicitArgs = intersectAttrs (nixpkgs'lib'functionArgs target) scope;
+    in target (implicitArgs // args);
+
+    importInputWith = { buildConfigWith, callWithScope }: {
+      input
+    , inputs
+    , buildConfig ? buildConfigWith { inherit system; }
+    , system ? throw "must provide either `system` or `buildConfig`"
+    , ...
+    }@args: let
+      extraArgs = removeAttrs args [ "input" "inputs" "buildConfig" "system" ];
+      importer = import input;
+      importArgs = {
+        inherit (buildConfig) localSystem crossSystem;
+      } // inputs;
+      imported = callWithScope importArgs importer extraArgs;
+    in imported;
+
+    loadInputWith = { buildConfigWith, importInputWith }: {
+      input
+    , inputs
+    , buildConfig ? buildConfigWith { inherit system; }
+    , system ? throw "must provide either `system` or `buildConfig`"
+    , ...
+    }@args: let
+      extraArgs = removeAttrs args [ "input" "inputs" "buildConfig" "system" ];
+      inherit (buildConfig.localSystem) system;
+      hasFlakePackages = input ? legacyPackages.${system} || input ? packages.${system};
+      isNative = buildConfig.isNative && hasFlakePackages;
+      useNativePackages = isNative && extraArgs == { };
+      legacyPackages = input.legacyPackages.${system} or { };
+      packages = input.packages.${system} or { };
+      imported = importInputWith args;
+      nativePackages = legacyPackages // packages;
+      hasFlakes = input ? flakes.import;
+      loaded = input.flakes.import {
+        inherit buildConfig;
+      };
+    in input // {
+      inherit input buildConfig;
+      ${if isNative then "outputs" else null} = {
+        inherit packages legacyPackages;
+        checks = input.checks.${system} or { };
+        apps = input.apps.${system} or { };
+      };
+      import = imported;
+      packages = if useNativePackages then nativePackages
+        else if hasFlakes then loaded.legacyPackages or { } // loaded.packages or { }
+        else imported;
+    };
 
     makeCas = { runCommand }: {
       drv
@@ -163,7 +177,7 @@
     }: let
       cmd = shellCommand {
         inherit system name;
-        shellCommand = if cond
+        command = if cond
           then ''printf "" > $out''
           else ''printf %s "$message" >&2; exit 1'';
         ${if cond then null else "message"} = message;
@@ -174,14 +188,14 @@
       fn = {
         system ? buildConfig.localSystem.system or (throw "system must be supplied")
       , buildConfig ? null
-      , shellCommand
+      , command
       , pname ? "shell"
       , version ? null
       , name ? "${pname}${if version != null then "-${version}" else ""}"
       , args ?
         if arg'asFile then [ "-c" "source $shellCommandPath" ]
-        else if arg'toFile then [ (builtins.toFile name shellCommand) ]
-        else [ "-c" shellCommand ]
+        else if arg'toFile then [ (builtins.toFile name command) ]
+        else [ "-c" command ]
       , builder ? "/bin/sh"
       , passthru ? { }
       , arg'crossAware ? arg'targetAware
@@ -189,15 +203,15 @@
       , arg'asFile ? false
       , arg'toFile ? false
       , ...
-      }@extraArgs: let
+      }@attrs: let
         crossAware = attrs.arg'crossAware or false;
         targetAware = attrs.arg'targetAware or false;
         localSystem = buildConfig.localSystem.system or system;
         crossSystem = buildConfig.crossSystem.system or localSystem;
-        drvArgs = removeAttrs extraArgs [ "shellCommand" "arg'crossAware" "arg'targetAware" "arg'asFile" "arg'toFile" "passthru" ] // {
+        drvArgs = removeAttrs attrs [ "command" "arg'crossAware" "arg'targetAware" "arg'asFile" "arg'toFile" "passthru" ] // {
           inherit name system args builder;
-          ${if arg'asFile then "shellCommand" else null} = shellCommand;
-          ${if arg'asFile then "passAsFile" else null} = extraArgs.passAsFile or [ ] ++ [ "shellCommand" ];
+          ${if arg'asFile then "command" else null} = command;
+          ${if arg'asFile then "passAsFile" else null} = attrs.passAsFile or [ ] ++ [ "command" ];
 
           ${if crossAware then "localSystem" else null} = localSystem;
           ${if crossAware then "crossSystem" else null} = crossSystem;
@@ -222,5 +236,11 @@
     in spliceFn {
       inherit fn splicer;
     };
+
+    runCommand = { shellCommand }: let
+      fn = name: args: command: shellCommand ({
+        inherit name command;
+      } // args);
+    in fn;
   };
 in mapAttrs (_: fn: callPackage fn { }) callfns // fns

@@ -6,20 +6,23 @@
     if [[ -n ''${GITHUB_TOKEN-} ]]; then
       ARGS+=(--access-tokens "github.com=$GITHUB_TOKEN")
     fi
-    ${pkgs.nix_2_4}/bin/nix "''${ARGS[@]}" "$@"
+    exec ${pkgs.nix_2_4}/bin/nix "''${ARGS[@]}" "$@"
   '';
-  flakegen-check = pkgs.ci.command {
-    name = "flakegen-check";
+  flake-check = name: path: pkgs.ci.command {
+    name = "${name}-check";
     command = ''
-      ${nix24}/bin/nix flake check ./flakegen
+      ${nix24}/bin/nix flake check ./${path}
     '';
     impure = true;
   };
+  flakegen-check = flake-check "flakegen" "flakegen";
+  example-check = flake-check "example-packages" "examples/packages";
+  lib-check = flake-check "lib" "lib";
 in {
   name = "flakes.nix";
   ci.gh-actions.enable = true;
   gh-actions.env.GITHUB_TOKEN = "\${{ secrets.GITHUB_TOKEN }}";
   cache.cachix.arc.enable = true;
   channels.nixpkgs = "21.11";
-  tasks.flakegen.inputs = singleton flakegen-check;
+  tasks.flakes.inputs = [ flakegen-check lib-check example-check ];
 }

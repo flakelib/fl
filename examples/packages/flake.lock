@@ -1,0 +1,54 @@
+{
+  "nodes": {
+    "flakeslib": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "narHash": "sha256-p1q9HslrvTZXVvK1rwUyDlGOQP0TH/moUM1BnsCMybg=",
+        "path": "/nix/store/chd8a5gl2ky67cm7c5n2wzaaxj5jczxn-source/lib",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/chd8a5gl2ky67cm7c5n2wzaaxj5jczxn-source/lib",
+        "type": "path"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1637780917,
+        "narHash": "sha256-lbdZ/a/dkXz9elnphN2VVtIyLOoGttOZ42txhwgSDNk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4f32620715e5ffe2d0e97a502b6977b76397b8f8",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1637780917,
+        "narHash": "sha256-lbdZ/a/dkXz9elnphN2VVtIyLOoGttOZ42txhwgSDNk=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "4f32620715e5ffe2d0e97a502b6977b76397b8f8",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flakeslib": "flakeslib",
+        "nixpkgs": "nixpkgs_2"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
