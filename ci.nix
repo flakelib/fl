@@ -1,17 +1,8 @@
 { pkgs, lib, ... }: with lib; let
-  nix24 = pkgs.writeShellScriptBin "nix" ''
-    ARGS=(
-      --extra-experimental-features "nix-command flakes ca-derivations recursive-nix"
-    )
-    if [[ -n ''${GITHUB_TOKEN-} ]]; then
-      ARGS+=(--access-tokens "github.com=$GITHUB_TOKEN")
-    fi
-    exec ${pkgs.nix_2_4}/bin/nix "''${ARGS[@]}" "$@"
-  '';
   flake-check = name: path: pkgs.ci.command {
     name = "${name}-check";
     command = ''
-      ${nix24}/bin/nix flake check ./${path}
+      nix flake check ./${path}
     '';
     impure = true;
   };
@@ -20,6 +11,7 @@
   lib-check = flake-check "lib" "lib";
 in {
   name = "flakes.nix";
+  ci.version = "nix2.4";
   ci.gh-actions.enable = true;
   gh-actions.env.GITHUB_TOKEN = "\${{ secrets.GITHUB_TOKEN }}";
   cache.cachix.arc.enable = true;
