@@ -1,68 +1,59 @@
-{ lib, self'lib }: with lib; let
-  inherit (self'lib) makeContext callPackageCustomized keepAttrs buildConfigWith supportedSystems;
-  inherit (lib) systems;
+{ std, resolver, self'lib }: let
+  inherit (std) flip set;
+  inherit (self'lib) supportedSystems;
 in {
-  callFlake = {
-    inputs
-  , packages ? null, defaultPackage ? null, legacyPackages ? null
-  , checks ? null
-  , apps ? null, defaultApp ? null
-  , devShells ? null, devShell ? null
-  , lib ? null, builders ? null
-  , systems ? supportedSystems.tier2
-  , config ? { }
-  , ...
-  }@args: let
-    buildAttrNames = [ "packages" "defaultPackage" "legacyPackages" "checks" "apps" "defaultApp" "devShells" "devShell" ];
-    extraArgs = removeAttrs args (buildAttrNames ++ [
-      "inputs" "lib" "builders" "systems" "config"
-    ]);
-    callWith = context: targetName: target: callPackageCustomized {
-      inherit context target targetName;
+  inputs
+, packages ? null, defaultPackage ? null, legacyPackages ? null
+, checks ? null
+, apps ? null, defaultApp ? null
+, devShells ? null, devShell ? null
+, lib ? null, builders ? null
+, systems ? supportedSystems.tier2
+, config ? { }
+, ...
+}@args: let
+  buildAttrNames = [ "packages" "defaultPackage" "legacyPackages" "checks" "apps" "defaultApp" "devShells" "devShell" ];
+  extraArgs = set.without (buildAttrNames ++ [
+    "inputs" "lib" "builders" "systems" "config"
+  ]) args;
+  callWith = context: targetName: target: resolver.context.callPackageCustomized {
+    inherit context target targetName;
+  };
+  callWithSystem = name: system: attrs: callWith (staticContextForSystem system) name attrs;
+  callWithSystems = name: attrs: set.gen systems (flip (callWithSystem name) attrs);
+  staticContext = buildConfig: resolver.context.new inputs buildConfig;
+  buildConfigForSystem = system: resolver.context.buildConfig.new { inherit system; };
+  staticContextForSystem = system: staticContext (buildConfigForSystem system);
+  buildAttrs = set.retain buildAttrNames args;
+  staticBuildAttrs = set.map callWithSystems buildAttrs;
+  flakes = {
+    inherit systems;
+    config = config // {
     };
-    callWithSystem = name: system: attrs: callWith (staticContextForSystem system) name attrs;
-    callWithSystems = name: attrs: genAttrs systems (flip (callWithSystem name) attrs);
-    staticContext = buildConfig: makeContext {
-      inherit inputs buildConfig;
+    import = {
+      buildConfig
+    #, inputs
+    }: let
+      context = resolver.context.new inputs buildConfig;
+    in set.map (callWith context) (buildAttrs // set.retain [ "builders" ] args) // {
+      inherit flakes context;
+      inherit (inputs.self) lib;
     };
-    buildConfigForSystem = system: buildConfigWith { inherit system; };
-    staticContextForSystem = system: staticContext (buildConfigForSystem system);
-    buildAttrs = keepAttrs args buildAttrNames;
-    staticBuildAttrs = mapAttrs callWithSystems buildAttrs;
-    flakes = {
-      inherit systems;
-      config = config // {
-      };
-      import = {
-        buildConfig
-      #, inputs
-      }: let
-        context = makeContext {
-          inherit inputs buildConfig;
-        };
-      in mapAttrs (callWith context) (buildAttrs // keepAttrs args [ "builders" ]) // {
-        inherit flakes;
-        inherit (inputs.self) lib;
-      };
+    impure = inputs.self.flakes.import {
+      buildConfig = resolver.context.buildConfig.new { system = builtins.currentSystem; };
     };
-    staticAttrs = {
-      inherit flakes;
-      ${if args ? lib then "lib" else null} = callPackageCustomized {
-        targetName = "lib";
-        target = lib;
-        context = makeContext {
-          inherit inputs;
-          buildConfig = null;
-        };
-      };
-      ${if args ? builders then "builders" else null} = callPackageCustomized {
-        targetName = "builders";
-        target = builders;
-        context = makeContext {
-          inherit inputs;
-          buildConfig = null;
-        };
-      };
+  };
+  staticAttrs = {
+    inherit flakes;
+    ${if args ? lib then "lib" else null} = resolver.context.callPackageCustomized {
+      targetName = "lib";
+      target = lib;
+      context = resolver.context.new inputs null;
     };
-  in staticBuildAttrs // staticAttrs;
-}
+    ${if args ? builders then "builders" else null} = resolver.context.callPackageCustomized {
+      targetName = "builders";
+      target = builders;
+      context = resolver.context.new inputs null;
+    };
+  };
+in staticBuildAttrs // staticAttrs

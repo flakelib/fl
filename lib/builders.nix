@@ -111,17 +111,21 @@
   , message ? "failed assertion ${name}"
   , name ? "assertion"
   , build ? true
+  , tryEval ? true
   , ...
   }@args: let
-    extraArgs = removeAttrs args [ "message" "build" "cond" ];
+    extraArgs = removeAttrs args [ "message" "build" "cond" "tryEval" ];
+    evaluatedCond = if tryEval
+      then (builtins.tryEval cond).value # NOTE: relies on the fact that `value == false` if `success == false`
+      else cond;
     cmd = shellCommand (extraArgs // {
       inherit name;
-      command = if cond
+      command = if evaluatedCond
         then ''printf "" > $out''
         else ''printf %s "$message" >&2; exit 1'';
       ${if cond then null else "message"} = message;
     });
-  in if ! cond && ! build then throw message else cmd;
+  in if ! build && ! evaluatedCond then throw message else cmd;
 
   shellCommand = { buildConfig }: let
     bc' = buildConfig;

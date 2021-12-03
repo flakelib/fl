@@ -1,0 +1,22 @@
+{
+  "nodes": {
+    "root": {
+      "inputs": {
+        "std": "std"
+      }
+    },
+    "std": {
+      "locked": {
+        "narHash": "sha256-tgsAHW8z/gYoqx4hMSQaB7idYeP+BadCSyFQNzNc2KM=",
+        "path": "/home/arc/projects/nix/std",
+        "type": "path"
+      },
+      "original": {
+        "id": "flakes-std",
+        "type": "indirect"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

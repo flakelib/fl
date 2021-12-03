@@ -1,8 +1,13 @@
 {
   inputs = {
-    nixpkgs.url = "nixpkgs"; # TODO: replace with nixlib if needed
+    nixpkgs.url = "github:arcnmx/nixpkgs-lib";
+    resolver = {
+      url = "flakes-resolver";
+      inputs.std.follows = "std";
+    };
+    std.url = "flakes-std";
   };
-  outputs = { self, nixpkgs, ... }@inputs: let
+  outputs = { self, nixpkgs, resolver, std, ... }@inputs: let
     flake = self {
       inherit inputs;
       config = {
@@ -14,30 +19,13 @@
   in {
     inherit (flake) flakes checks builders;
     lib = import ./lib.nix {
-      callPackage = self.lib.makeCallPackage {
-        buildConfig = null;
-        scope = {
-          global = self.lib;
-          inputs = {
-            nixpkgs = {
-              inherit (nixpkgs) lib;
-            };
-            flakes = {
-              inherit (self) lib;
-            };
-          };
-        };
-        inputs = {
-          inherit nixpkgs;
-          flakes = self;
-        };
+      inherit (nixpkgs) lib;
+    } // {
+      callFlake = import ./callflake.nix {
+        std = std.lib;
+        self'lib = self.lib;
+        resolver = resolver.lib;
       };
-    } // import ./callpackage.nix {
-      lib = nixpkgs.lib;
-      self'lib = self.lib;
-    } // import ./callflake.nix {
-      lib = nixpkgs.lib;
-      self'lib = self.lib;
     };
     __functor = self: self.lib.callFlake;
   };

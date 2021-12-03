@@ -2,19 +2,27 @@
   flake-check = name: path: pkgs.ci.command {
     name = "${name}-check";
     command = ''
+      if [[ $CI_PLATFORM = gh-actions ]]; then
+        nix registry add flakes-std github:arcnmx/nix-std
+        nix registry add flakes-resolver path:${toString ./resolver}
+        nix registry add flakes-lib path:${toString ./lib}
+        nix registry add nixpkgs path:$pkgs
+      fi
       nix flake check ./${path}
     '';
     impure = true;
+    environment = [ "CI_PLATFORM" ];
   };
   flakegen-check = flake-check "flakegen" "flakegen";
   example-check = flake-check "example-packages" "examples/packages";
   lib-check = flake-check "lib" "lib";
+  lib-checks = flake-check "lib-checks" "lib/checks";
+  resolver-check = flake-check "resolver" "resolver";
 in {
   name = "flakes.nix";
   ci.version = "nix2.4";
   ci.gh-actions.enable = true;
-  gh-actions.env.GITHUB_TOKEN = "\${{ secrets.GITHUB_TOKEN }}";
   cache.cachix.arc.enable = true;
   channels.nixpkgs = "21.11";
-  tasks.flakes.inputs = [ flakegen-check lib-check example-check ];
+  tasks.flakes.inputs = [ flakegen-check lib-check lib-checks resolver-check example-check ];
 }
