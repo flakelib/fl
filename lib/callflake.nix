@@ -21,7 +21,7 @@ in {
   };
   callWithSystem = name: system: attrs: callWith (staticContextForSystem system) name attrs;
   callWithSystems = name: attrs: set.gen systems (flip (callWithSystem name) attrs);
-  staticContext = buildConfig: resolver.context.new inputs buildConfig;
+  staticContext = buildConfig: resolver.context.new { inherit inputs buildConfig; };
   buildConfigForSystem = system: resolver.context.buildConfig.new { inherit system; };
   staticContextForSystem = system: staticContext (buildConfigForSystem system);
   buildAttrs = set.retain buildAttrNames args;
@@ -34,7 +34,7 @@ in {
       buildConfig
     #, inputs
     }: let
-      context = resolver.context.new inputs buildConfig;
+      context = resolver.context.new { inherit inputs buildConfig; };
     in set.map (callWith context) (buildAttrs // set.retain [ "builders" ] args) // {
       inherit flakes context;
       inherit (inputs.self) lib;
@@ -48,12 +48,12 @@ in {
     ${if args ? lib then "lib" else null} = resolver.context.callPackageCustomized {
       targetName = "lib";
       target = lib;
-      context = resolver.context.new inputs null;
+      context = resolver.context.new { inherit inputs; };
     };
     ${if args ? builders then "builders" else null} = resolver.context.callPackageCustomized {
       targetName = "builders";
       target = builders;
-      context = resolver.context.new inputs null;
+      context = resolver.context.new { inherit inputs; };
     };
   };
 in staticBuildAttrs // staticAttrs
