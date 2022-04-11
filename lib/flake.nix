@@ -18,14 +18,8 @@
     };
   in {
     inherit (flake) flakes checks builders;
-    lib = import ./lib.nix {
-      inherit (nixpkgs) lib;
-    } // {
-      callFlake = import ./callflake.nix {
-        std = std.lib;
-        self'lib = self.lib;
-        resolver = resolver.lib;
-      };
+    lib = import ./lib {
+      inherit self resolver std nixpkgs;
     };
     __functor = self: self.lib.callFlake;
   };

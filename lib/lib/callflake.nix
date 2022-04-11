@@ -1,6 +1,7 @@
-{ std, resolver, self'lib }: let
-  inherit (std) flip set;
-  inherit (self'lib) supportedSystems;
+{ self, resolver, std }: let
+  inherit (std.lib) flip set;
+  inherit (self.lib) supportedSystems;
+  rctx = resolver.lib.context;
 in {
   inputs
 , packages ? null, defaultPackage ? null, legacyPackages ? null
@@ -16,13 +17,13 @@ in {
   extraArgs = set.without (buildAttrNames ++ [
     "inputs" "lib" "builders" "systems" "config"
   ]) args;
-  callWith = context: targetName: target: resolver.context.callPackageCustomized {
+  callWith = context: targetName: target: rctx.callPackageCustomized {
     inherit context target targetName;
   };
   callWithSystem = name: system: attrs: callWith (staticContextForSystem system) name attrs;
   callWithSystems = name: attrs: set.gen systems (flip (callWithSystem name) attrs);
-  staticContext = buildConfig: resolver.context.new { inherit inputs buildConfig; };
-  buildConfigForSystem = system: resolver.context.buildConfig.new { inherit system; };
+  staticContext = buildConfig: rctx.new { inherit inputs buildConfig; };
+  buildConfigForSystem = system: rctx.buildConfig.new { inherit system; };
   staticContextForSystem = system: staticContext (buildConfigForSystem system);
   buildAttrs = set.retain buildAttrNames args;
   staticBuildAttrs = set.map callWithSystems buildAttrs;
@@ -34,26 +35,26 @@ in {
       buildConfig
     #, inputs
     }: let
-      context = resolver.context.new { inherit inputs buildConfig; };
+      context = rctx.new { inherit inputs buildConfig; };
     in set.map (callWith context) (buildAttrs // set.retain [ "builders" ] args) // {
       inherit flakes context;
       inherit (inputs.self) lib;
     };
     impure = inputs.self.flakes.import {
-      buildConfig = resolver.context.buildConfig.new { system = builtins.currentSystem; };
+      buildConfig = rctx.buildConfig.new { system = builtins.currentSystem; };
     };
   };
   staticAttrs = {
     inherit flakes;
-    ${if args ? lib then "lib" else null} = resolver.context.callPackageCustomized {
+    ${if args ? lib then "lib" else null} = rctx.callPackageCustomized {
       targetName = "lib";
       target = lib;
-      context = resolver.context.new { inherit inputs; };
+      context = rctx.new { inherit inputs; };
     };
-    ${if args ? builders then "builders" else null} = resolver.context.callPackageCustomized {
+    ${if args ? builders then "builders" else null} = rctx.callPackageCustomized {
       targetName = "builders";
       target = builders;
-      context = resolver.context.new { inherit inputs; };
+      context = rctx.new { inherit inputs; };
     };
   };
 in staticBuildAttrs // staticAttrs
