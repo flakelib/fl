@@ -1,5 +1,5 @@
 { self, std }: let
-  inherit (std) flake types string bool list set regex function;
+  inherit (std) flake types string bool list set regex function optional;
   resolver = self.lib;
 in {
   resolver = {
@@ -76,19 +76,22 @@ in {
       aliases = set.mapToList (name: input:
         list.map (alias: { _0 = alias; _1 = context.scope.inputs.${name}; }) input.flakes.config.aliases or [ ]
       ) inputs;
-      orderedInputs = set.keys inputs;
-      mergeScopes = attrPath: list.foldl' set.semigroup.append {} (map (name: set.atOr {} ([ name ] ++ attrPath) context.scope.inputs) orderedInputs);
+      contextScope = {
+        lib = mergeScopes [ "lib" ];
+        builders = mergeScopes [ "builders" ];
+        inherit context buildConfig;
+      };
+      orderedInputNames = set.keys (set.without [ "self" ] inputs) ++ list.singleton "self";
+      orderedInputs = attrPath: map (name: set.atOr {} ([ name ] ++ attrPath) context.scope.inputs) orderedInputNames;
+      mergeScopes = attrPath: list.foldl' set.semigroup.append {} (orderedInputs attrPath);
       context = {
         inputs = set.map mapInput inputs;
         scope = {
           inputs = set.fromList (list.concat aliases) // set.map (name: _:
             context.inputs.${name} // context.inputs.${name}.builders or { } // context.inputs.${name}.packages or { }
           ) inputs;
-          global = mergeScopes [] // {
-            lib = mergeScopes [ "lib" ];
-            builders = mergeScopes [ "builders" ];
-            inherit buildConfig;
-          };
+          ordered = list.singleton contextScope ++ orderedInputs [];
+          global = mergeScopes [] // contextScope;
         };
         inherit buildConfig;
       };
@@ -102,10 +105,23 @@ in {
       inherit context;
     };
 
+    queryAll = context: { name, components, offset, fallback, ... }@arg: let
+      mapScope = set.lookupAt components;
+      scopes = list.map mapScope context.scope.ordered;
+      ordered = optional.match (list.findIndex optional.isJust scopes) {
+        nothing = optional.nothing;
+        just = i: list.index scopes i;
+      };
+    in optional.match ordered {
+      nothing = set.atOr fallback components context.scope.global;
+      just = function.id;
+    };
+
     query = context: { name, components ? [ name ], input ? null, offset ? null, optional ? false, fallback ? null, targetName ? null, ... }@arg: let
       base' = if input != null then context.scope.inputs.${input} else context.scope.global;
       offsetAttr = "${offset}Packages"; # TODO: this better
       base = if offset != null then base'.${offsetAttr} else base';
+      hasScope = input != null && (offset == null || base' ? ${offsetAttr});
       marker = { __'notFound = true; };
       fallback =
         if arg ? fallback then fallback
@@ -114,7 +130,9 @@ in {
           + string.optional (targetName != null) " when calling `${targetName}`"
           + string.optional (input != null) " in input ${input}"
         );
-      value = set.atOr fallback components base; # TODO: parseInjectable at every attr access here
+      value = if hasScope
+        then set.atOr fallback components base # TODO: parseInjectable at every attr access here
+        else resolver.context.queryAll context (arg // { inherit name components offset fallback; });
       result = resolver.resolver.parseInjectable context value;
     in if value == marker then null else result;
 
