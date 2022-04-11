@@ -136,10 +136,10 @@
     , pname ? "shell"
     , version ? null
     , name ? "${pname}${if version != null then "-${version}" else ""}"
-    , args ?
-      if arg'asFile then [ "-c" "source $shellCommandPath" ]
+    , args ? [ "-e" "-u" ] ++ (
+      if arg'asFile then [ "-c" "source $commandPath" ]
       else if arg'toFile then [ (builtins.toFile name command) ]
-      else [ "-c" command ]
+      else [ "-c" command ])
     , builder ? "/bin/sh"
     , passthru ? { }
     , arg'crossAware ? arg'targetAware
