@@ -1,7 +1,7 @@
 { self, std }: let
   inherit (std.lib) types string list set function optional;
-  inherit (self.lib) flake resolver;
-  rctx = self.lib.context;
+  inherit (self.lib.resolver) flake resolver;
+  rctx = self.lib.resolver.context;
 in {
   buildConfig = {
     new = {

@@ -1,7 +1,7 @@
-{ self, resolver, std }: let
+{ self, std }: let
   inherit (std.lib) flip set;
   inherit (self.lib) supportedSystems;
-  rctx = resolver.lib.context;
+  rctx = self.lib.resolver.context;
 in {
   inputs
 , packages ? null, defaultPackage ? null, legacyPackages ? null

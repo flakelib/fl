@@ -1,7 +1,7 @@
 { self, std }: let
   inherit (std.lib) types set function;
-  inherit (self.lib) flake;
-  rctx = self.lib.context;
+  inherit (self.lib.resolver) flake;
+  rctx = self.lib.resolver.context;
 in {
   # importInput :: context -> input -> args -> resolved
   importInput = context: input: let

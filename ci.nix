@@ -20,12 +20,11 @@
   example-check = flake-check "example-packages" "examples/packages";
   lib-check = flake-check "lib" "lib";
   lib-checks = flake-check "lib-checks" "lib/checks";
-  resolver-check = flake-check "resolver" "resolver";
 in {
   name = "flakes.nix";
   ci.version = "nix2.4-broken";
   ci.gh-actions.enable = true;
   cache.cachix.arc.enable = true;
   channels.nixpkgs = "21.11";
-  tasks.flakes.inputs = [ flakegen-check lib-check lib-checks resolver-check example-check ];
+  tasks.flakes.inputs = [ flakegen-check lib-check lib-checks example-check ];
 }

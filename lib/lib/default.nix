@@ -1,4 +1,4 @@
-{ self, resolver, std }: {
+{ self, std }@inputs: {
   supportedSystems = let
     inherit (import ../checks/systems.nix) doubles supported;
     tier1 = supported.tier1;
@@ -9,5 +9,7 @@
     inherit tier1 tier2 tier3;
   };
 
-  callFlake = import ./callflake.nix { inherit self resolver std; };
+  callFlake = import ./callflake.nix inputs;
+
+  resolver = import ./resolver inputs;
 }

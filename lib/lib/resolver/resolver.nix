@@ -1,6 +1,6 @@
 { self, std }: let
   inherit (std.lib) string list set function;
-  inherit (self.lib) util resolver;
+  inherit (self.lib.resolver) util resolver;
 in {
   parseArgName = inputNames: name: let
     offsetNames = [ "build" "target" ];

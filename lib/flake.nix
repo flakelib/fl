@@ -1,12 +1,8 @@
 {
   inputs = {
-    resolver = {
-      url = "flakes-resolver";
-      inputs.std.follows = "std";
-    };
     std.url = "flakes-std";
   };
-  outputs = { self, resolver, std, ... }@inputs: let
+  outputs = { self, std, ... }@inputs: let
     flake = self {
       inherit inputs;
       config = {
@@ -18,7 +14,7 @@
   in {
     inherit (flake) flakes checks builders;
     lib = import ./lib {
-      inherit self resolver std;
+      inherit self std;
     };
     __functor = self: self.lib.callFlake;
   };

@@ -1,6 +1,6 @@
 { self, std }: let
   inherit (std.lib) list bool regex;
-  inherit (self.lib) util;
+  inherit (self.lib.resolver) util;
 in {
   regex = {
     splitExt = p: s: util.regex.parseSplit (regex.split p s);
