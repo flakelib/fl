@@ -9,7 +9,7 @@
       };
     };
     flakegen = {
-      url = "../../flakegen";
+      url = "github:arcnmx/flakegen";
       inputs = {
         nixpkgs.follows = "nixpkgs";
         flakeslib.follows = "flakeslib";

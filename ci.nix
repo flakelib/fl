@@ -16,7 +16,6 @@
     impure = true;
     environment = [ "CI_PLATFORM" ];
   };
-  flakegen-check = flake-check "flakegen" "flakegen";
   example-check = flake-check "example-packages" "examples/packages";
   lib-check = flake-check "lib" "lib";
   lib-checks = flake-check "lib-checks" "lib/checks";
@@ -26,5 +25,5 @@ in {
   ci.gh-actions.enable = true;
   cache.cachix.arc.enable = true;
   channels.nixpkgs = "21.11";
-  tasks.flakes.inputs = [ flakegen-check lib-check lib-checks example-check ];
+  tasks.flakes.inputs = [ lib-check lib-checks example-check ];
 }
