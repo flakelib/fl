@@ -1,6 +1,7 @@
 { self, std }: let
   inherit (std.lib) types string list set function optional;
-  inherit (self.lib) flake context resolver;
+  inherit (self.lib) flake resolver;
+  rctx = self.lib.context;
 in {
   buildConfig = {
     new = {
@@ -30,7 +31,7 @@ in {
     contextScope = {
       lib = mergeScopes [ "lib" ];
       builders = mergeScopes [ "builders" ];
-      inherit context buildConfig;
+      inherit context buildConfig inputs;
     };
     orderedInputNames = set.keys (set.without [ "self" ] inputs) ++ list.singleton "self";
     orderedInputs = attrPath: map (name: set.atOr {} ([ name ] ++ attrPath) context.scope.inputs) orderedInputNames;
@@ -41,7 +42,7 @@ in {
         inputs = set.fromList (list.concat aliases) // set.map (name: _:
           context.inputs.${name} // context.inputs.${name}.builders or { } // context.inputs.${name}.packages or { }
         ) inputs;
-        ordered = list.singleton contextScope ++ orderedInputs [];
+        ordered = [ contextScope context.scope.inputs ] ++ orderedInputs [];
         global = mergeScopes [] // contextScope;
       };
       inherit buildConfig;
@@ -60,7 +61,7 @@ in {
     inherit context;
   };
 
-  queryAll = context: { name, components, offset, fallback, ... }@arg: let
+  queryAll = context: { name, components, offset, ... }@arg: let
     mapScope = set.lookupAt components;
     scopes = list.map mapScope context.scope.ordered;
     ordered = optional.match (list.findIndex optional.isJust scopes) {
@@ -68,30 +69,33 @@ in {
       just = i: list.index scopes i;
     };
   in optional.match ordered {
-    nothing = set.atOr fallback components context.scope.global;
-    just = function.id;
+    nothing = set.lookupAt components context.scope.global;
+    inherit (optional) just;
   };
 
   query = context: { name, components ? [ name ], input ? null, offset ? null, optional ? false, fallback ? null, targetName ? null, ... }@arg: let
+    inherit (std.lib) optional;
+    arg'optional = arg.optional or false;
     base' = if input != null then context.scope.inputs.${input} else context.scope.global;
     offsetAttr = "${offset}Packages"; # TODO: this better
     base = if offset != null then base'.${offsetAttr} else base';
     hasScope = input != null && (offset == null || base' ? ${offsetAttr});
-    marker = { __'notFound = true; };
     fallback =
-      if arg ? fallback then fallback
-      else if optional then marker
+      if arg ? fallback then optional.just fallback
+      else if arg'optional then optional.nothing
       else throw ("attr `${name}` not found"
         + string.optional (targetName != null) " when calling `${targetName}`"
         + string.optional (input != null) " in input ${input}"
       );
     value = if hasScope
-      then set.atOr fallback components base # TODO: parseInjectable at every attr access here
-      else context.queryAll context (arg // { inherit name components offset fallback; });
-    result = resolver.parseInjectable context value;
-  in if value == marker then null else result;
+      then set.lookupAt components base # TODO: parseInjectable at every attr access here
+      else rctx.queryAll context (arg // { inherit name components offset fallback; });
+    result = optional.match value {
+      nothing = fallback;
+      inherit (optional) just;
+    };
+  in optional.functor.map (resolver.parseInjectable context) result;
 
-  # TODO: rewrite this and split it up!!
   callPackageCustomized = {
     context
   , target
@@ -105,11 +109,11 @@ in {
   }: let
     inputNames = set.keys context.scope.inputs;
     callable = resolver.parseCallable inputNames target;
-    callArgs'' = set.map (_name: arg: context.query context (arg // { inherit targetName; })) callable.args;
-    callArgs' = set.filter (_: v: v != null) callArgs'';
-    callArgs = set.map (_: v: v.item) callArgs';
+    callArgs'' = set.map (_name: arg: rctx.query context (arg // { inherit targetName; })) callable.args;
+    callArgs' = set.filter (_: optional.isJust) callArgs'';
+    callArgs = set.map (_: v: v.value.item) callArgs';
   in if targetMode == "call" then callable.fn (callArgs // overrides)
-    else if targetMode == "callAttrs" then set.map (targetName: target: context.callPackageCustomized {
+    else if targetMode == "callAttrs" then set.map (targetName: target: rctx.callPackageCustomized {
       inherit context target targetName;
     }) target else throw "invalid targetMode";
 }

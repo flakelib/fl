@@ -1,5 +1,5 @@
 { self, std }: let
-  inherit (std.lib) list;
+  inherit (std.lib) list bool regex;
   inherit (self.lib) util;
 in {
   regex = {
