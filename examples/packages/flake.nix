@@ -4,7 +4,6 @@
     flakeslib = {
       url = "../../lib";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
         std.follows = "std";
       };
     };

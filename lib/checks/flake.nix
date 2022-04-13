@@ -2,16 +2,23 @@
   inputs = {
     nixpkgs.url = "nixpkgs";
     std.url = "flakes-std";
-    flakes = {
+    flakeslib = {
       url = "../";
       inputs = {
-        nixpkgs.follows = "nixpkgs";
         std.follows = "std";
       };
     };
+    flakegen = {
+      url = "../../flakegen";
+      inputs = {
+        nixpkgs.follows = "nixpkgs";
+        flakeslib.follows = "flakeslib";
+      };
+    };
   };
-  outputs = { flakes, ... }@inputs: flakes {
+  outputs = { flakeslib, ... }@inputs: flakeslib {
     inherit inputs;
     checks = import ./checks.nix;
+    packages = import ./packages.nix;
   };
 }

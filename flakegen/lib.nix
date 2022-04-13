@@ -1,13 +1,12 @@
-{ lib, flakegen-lib }: let
-in {
+{
   modules = {
     flake = ./module.nix;
   };
 
-  mkFlake = config: let
+  mkFlake = { lib, self'lib }: config: let
     eval = lib.evalModules {
       modules = [
-        flakegen-lib.modules.flake
+        self'lib.modules.flake
         config
       ];
     };
