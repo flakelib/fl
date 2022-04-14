@@ -1,7 +1,6 @@
 { self, std }: let
   inherit (std.lib) types set function;
-  inherit (self.lib.resolver) flake;
-  rctx = self.lib.resolver.context;
+  inherit (self.lib.resolver) flake Context;
 in {
   # importInput :: context -> input -> args -> resolved
   importInput = context: input: let
@@ -12,14 +11,14 @@ in {
       else if types.function.check imported then imported
       else {}: imported;
     importer = input.flakes.import or fallback;
-    scope = rctx.importScope context;
+    scope = Context.importScope context;
   in function.wrapScoped scope importer;
 
   # loadInput :: context -> input -> args -> resolved
   loadInput = context: input: args: let
     inherit (context.buildConfig.localSystem) system;
     isBuild = context.buildConfig != null;
-    isNative = isBuild && rctx.buildConfig.isNative context.buildConfig;
+    isNative = isBuild && Context.BuildConfig.isNative context.buildConfig;
     useNative = isNative && args == { };
     outputs = { # TODO: do not use `outputs` since it already exists? or idk :<
       packages = input.packages.${system} or { };

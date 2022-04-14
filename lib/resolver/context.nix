@@ -1,9 +1,8 @@
 { self, std }: let
   inherit (std.lib) types string list set function optional;
-  inherit (self.lib.resolver) flake resolver;
-  rctx = self.lib.resolver.context;
+  inherit (self.lib.resolver) flake resolver Context;
 in {
-  buildConfig = {
+  BuildConfig = {
     new = {
       system ? throw "must provide either `system` or `localSystem`"
     , localSystem ? { inherit system; }
@@ -15,9 +14,9 @@ in {
     isNative = bc: bc.localSystem == bc.crossSystem;
     #elaborate = lib.systems.elaborate;
 
-    __functor = self: arg:
-      if types.string.check arg then self.new { system = arg; }
-      else self.new arg;
+    __functor = BuildConfig: arg:
+      if types.string.check arg then BuildConfig.new { system = arg; }
+      else BuildConfig.new arg;
   };
 
   new = {
@@ -49,7 +48,7 @@ in {
     };
   in context;
 
-  __functor = self: inputs: buildConfig: self.new {
+  __functor = Context: inputs: buildConfig: Context.new {
     inherit inputs buildConfig;
   };
 
@@ -89,7 +88,7 @@ in {
       );
     value = if hasScope
       then set.lookupAt components base # TODO: parseInjectable at every attr access here
-      else rctx.queryAll context (arg // { inherit name components offset fallback; });
+      else Context.queryAll context (arg // { inherit name components offset fallback; });
     result = optional.match value {
       nothing = fallback;
       inherit (optional) just;
@@ -109,11 +108,11 @@ in {
   }: let
     inputNames = set.keys context.scope.inputs;
     callable = resolver.parseCallable inputNames target;
-    callArgs'' = set.map (_name: arg: rctx.query context (arg // { inherit targetName; })) callable.args;
+    callArgs'' = set.map (_name: arg: Context.query context (arg // { inherit targetName; })) callable.args;
     callArgs' = set.filter (_: optional.isJust) callArgs'';
     callArgs = set.map (_: v: v.value.item) callArgs';
   in if targetMode == "call" then callable.fn (callArgs // overrides)
-    else if targetMode == "callAttrs" then set.map (targetName: target: rctx.callPackageCustomized {
+    else if targetMode == "callAttrs" then set.map (targetName: target: Context.callPackageCustomized {
       inherit context target targetName;
     }) target else throw "invalid targetMode";
 }
