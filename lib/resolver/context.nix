@@ -49,6 +49,9 @@ in {
       builders = mergeScopes [ "builders" ];
       inherit context;
       inherit (context) buildConfig inputs;
+      callPackage = target: overrides: Context.callPackageCustomized {
+        inherit context target overrides;
+      };
     };
     orderedInputs = attrPath: map (name: set.atOr {} ([ name ] ++ attrPath) scope.inputs) (Context.orderedInputNames context);
     mergeScopes = attrPath: list.foldl' set.semigroup.append {} (orderedInputs attrPath);
