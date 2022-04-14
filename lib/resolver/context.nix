@@ -19,6 +19,14 @@ in {
       else BuildConfig.new arg;
   };
 
+  InputConfig = {
+    new = { name, config ? { } }: {
+      inherit name config;
+    };
+
+    aliases = inputConfig: inputConfig.config.aliases or [ ];
+  };
+
   # new :: set -> Context { buildConfig :: Context.BuildConfig?, inputs :: [input], flakes :: [Flake] }
   new = {
     inputs
@@ -54,11 +62,16 @@ in {
     };
   in scope;
 
+  inputConfigs = context: set.map (name: _: Context.InputConfig.new {
+    inherit name;
+    config = context.inputs.self.flakes.config.inputs.${name} or { };
+  }) context.inputs;
+
   # { alias: inputName }
   inputAliases = context: let
-    inputs = context.inputs.self.flakes.config.inputs or { };
-    aliasPairs = name: input: list.map (alias: { _0 = alias; _1 = name; }) (input.aliases or [ ]);
-  in set.fromList (list.concat (set.mapToList aliasPairs inputs));
+    inputConfigs = Context.inputConfigs context;
+    aliasPairs = name: inputConfig: list.map (alias: { _0 = alias; _1 = name; }) (Context.InputConfig.aliases inputConfig);
+  in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs));
 
   orderedInputNames = context:
     set.keys (set.without [ "self" ] context.inputs) ++ list.singleton "self";
