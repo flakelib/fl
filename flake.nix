@@ -1,11 +1,12 @@
 {
   inputs = {
-    std.url = "flakes-std";
+    std.url = "github:flakelib/std";
   };
   outputs = { self, std, ... }@inputs: let
     flake = self {
       inherit inputs;
       config = {
+        name = "flakelib";
         aliases = [ "fl" ];
       };
       checks = import ./checks.nix;

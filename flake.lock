@@ -1,0 +1,26 @@
+{
+  "nodes": {
+    "root": {
+      "inputs": {
+        "std": "std"
+      }
+    },
+    "std": {
+      "locked": {
+        "lastModified": 1649814279,
+        "narHash": "sha256-laOWeW3D9laGwRRZq+1xtm8R9ZBHaVsZ7S3nYegiUjs=",
+        "owner": "flakelib",
+        "repo": "std",
+        "rev": "d614857f99c79a32e30ab190c0eb1bac0b1164e4",
+        "type": "github"
+      },
+      "original": {
+        "owner": "flakelib",
+        "repo": "std",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

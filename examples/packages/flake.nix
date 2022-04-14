@@ -2,13 +2,11 @@
   description = "example flake structure";
   inputs = {
     flakeslib = {
-      url = "../../lib";
-      inputs = {
-        std.follows = "std";
-      };
+      url = "github:flakeslib/fl";
+      inputs.std.follows = "std";
     };
-    nixpkgs.url = "nixpkgs";
-    std.url = "flakes-std";
+    std.url = "github:flakeslib/std";
+    nixpkgs.url = "github:NixOS/nixpkgs";
   };
   outputs = { flakeslib, ... }@inputs: flakeslib {
     inherit inputs;
