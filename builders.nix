@@ -62,7 +62,7 @@
     in derivation drvArgs // passthru;
   in fn;
 
-  runCommand = { shellCommand }: let
+  runShellCommand = { shellCommand }: let
     fn = name: args: command: shellCommand ({
       inherit name command;
     } // args);
