@@ -7,7 +7,6 @@
       inherit inputs;
       config = {
         name = "flakelib";
-        aliases = [ "fl" ];
       };
       checks = import ./checks.nix;
       builders = import ./builders.nix;
