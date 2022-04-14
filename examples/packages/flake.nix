@@ -1,15 +1,18 @@
 {
-  description = "example flake structure";
+  description = "example flake";
   inputs = {
-    flakeslib = {
-      url = "github:flakeslib/fl";
+    flakelib = {
+      url = "github:flakelib/fl";
       inputs.std.follows = "std";
     };
-    std.url = "github:flakeslib/std";
+    std.url = "github:flakelib/std";
     nixpkgs.url = "github:NixOS/nixpkgs";
   };
-  outputs = { flakeslib, ... }@inputs: flakeslib {
+  outputs = { flakelib, ... }@inputs: flakelib {
     inherit inputs;
+    config = {
+      name = "example";
+    };
 
     packages = {
       hello-wrapper = { writeShellScriptBin, hello, lib'drv'mainProgram }: writeShellScriptBin "hello-wrapper" ''
