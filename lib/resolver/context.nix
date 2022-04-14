@@ -25,6 +25,10 @@ in {
     };
 
     aliases = inputConfig: inputConfig.config.aliases or [ ];
+
+    __functor = InputConfig: name: config: InputConfig.new {
+      inherit name config;
+    };
   };
 
   # new :: set -> Context { buildConfig :: Context.BuildConfig?, inputs :: [input], flakes :: [Flake] }
