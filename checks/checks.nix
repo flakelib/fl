@@ -1,5 +1,5 @@
-{ systems, hello, checkCommand, std'lib }: let
-  inherit (std'lib.drv) mainProgram;
+{ systems, hello, checkCommand, std2'lib }: let
+  inherit (std2'lib.drv) mainProgram;
 in {
   mainProgram = checkCommand {
     name = "mainProgram-check";

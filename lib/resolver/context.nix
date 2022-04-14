@@ -55,7 +55,10 @@ in {
   in scope;
 
   # { alias: inputName }
-  inputAliases = context: context.inputs.self.flakes.config.aliases or { };
+  inputAliases = context: let
+    inputs = context.inputs.self.flakes.config.inputs or { };
+    aliasPairs = name: input: list.map (alias: { _0 = alias; _1 = name; }) (input.aliases or [ ]);
+  in set.fromList (list.concat (set.mapToList aliasPairs inputs));
 
   orderedInputNames = context:
     set.keys (set.without [ "self" ] context.inputs) ++ list.singleton "self";

@@ -19,6 +19,11 @@
   };
   outputs = { flakelib, ... }@inputs: flakelib {
     inherit inputs;
+    config = {
+      inputs = {
+        std.aliases = [ "std2" ];
+      };
+    };
     checks = import ./checks.nix;
     packages = import ./packages.nix;
   };
