@@ -1,6 +1,6 @@
 { self, std }@inputs: {
   supportedSystems = let
-    inherit (import ../checks/systems.nix) doubles supported;
+    inherit (import ./systems.nix) doubles supported;
     tier1 = supported.tier1;
     tier2 = tier1 ++ supported.tier2;
     tier3 = tier2 ++ supported.tier3;

@@ -7,6 +7,6 @@ in {
   };
   systemsUpToDate = checkCommand {
     name = "systems.nix-upToDate-check";
-    command = "[[ $(cat ${systems}) = $(cat ${./systems.nix}) ]]";
+    command = "[[ $(cat ${systems}) = $(cat ${../lib/systems.nix}) ]]";
   };
 }
