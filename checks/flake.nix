@@ -12,6 +12,7 @@
       url = "github:flakelib/flakegen";
       inputs = {
         nixpkgs.follows = "nixpkgs";
+        std.follows = "std";
         flakelib.follows = "flakelib";
       };
     };

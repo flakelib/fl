@@ -1,4 +1,4 @@
-{ systems, hello, checkAssert, checkCommand, std'lib }: let
+{ systems, hello, checkCommand, std'lib }: let
   inherit (std'lib.drv) mainProgram;
 in {
   mainProgram = checkCommand {

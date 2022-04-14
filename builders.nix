@@ -20,6 +20,25 @@
     });
   in if ! build && ! evaluatedCond then throw message else cmd;
 
+  checkCommand = { shellCommand }: {
+    command
+  , message ? "failed assertion ${name}"
+  , name ? "assertion"
+  , ...
+  }@args: let
+  in shellCommand (args // {
+    inherit name;
+    commandStr = command;
+    command = ''
+      if eval "$commandStr"; then
+        printf "" > $out
+      else
+        printf %s "$message" >&2
+        exit 1
+      fi
+    '';
+  });
+
   shellCommand = { buildConfig }: let
     bc' = buildConfig;
     fn = {

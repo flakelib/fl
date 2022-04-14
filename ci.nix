@@ -15,8 +15,8 @@
     environment = [ "CI_PLATFORM" ];
   };
   example-check = flake-check "example-packages" "examples/packages";
-  lib-check = flake-check "lib" "lib";
-  lib-checks = flake-check "lib-checks" "lib/checks";
+  lib-check = flake-check "lib" ".";
+  lib-checks = flake-check "checks" "checks";
 in {
   name = "flakes.nix";
   ci.version = "nix2.4-broken";
