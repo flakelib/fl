@@ -19,38 +19,52 @@ in {
       else BuildConfig.new arg;
   };
 
+  # new :: set -> Context { buildConfig :: Context.BuildConfig?, inputs :: [input], flakes :: [Flake] }
   new = {
     inputs
   , buildConfig ? null
   }: let
-    mapInput = name: input: flake.loadInput context input context.inputArgs.${name} or {};
-    aliases = set.mapToList (name: input:
-      list.map (alias: { _0 = alias; _1 = context.scope.inputs.${name}; }) input.flakes.config.aliases or [ ]
-    ) inputs;
-    contextScope = {
-      lib = mergeScopes [ "lib" ];
-      builders = mergeScopes [ "builders" ];
-      inherit context buildConfig inputs;
-    };
-    orderedInputNames = set.keys (set.without [ "self" ] inputs) ++ list.singleton "self";
-    orderedInputs = attrPath: map (name: set.atOr {} ([ name ] ++ attrPath) context.scope.inputs) orderedInputNames;
-    mergeScopes = attrPath: list.foldl' set.semigroup.append {} (orderedInputs attrPath);
     context = {
-      inputs = set.map mapInput inputs;
-      scope = {
-        inputs = set.fromList (list.concat aliases) // set.map (name: _:
-          context.inputs.${name} // context.inputs.${name}.builders or { } // context.inputs.${name}.packages or { }
-        ) inputs;
-        ordered = [ contextScope context.scope.inputs ] ++ orderedInputs [];
-        global = mergeScopes [] // contextScope;
-      };
-      inherit buildConfig;
+      inherit inputs buildConfig;
     };
   in context;
 
   __functor = Context: inputs: buildConfig: Context.new {
     inherit inputs buildConfig;
   };
+
+  flakes = context: set.map (name: input: flake.loadInput context input context.inputArgs.${name} or {}) context.inputs;
+
+  scope = context: let
+    contextScope = {
+      lib = mergeScopes [ "lib" ];
+      builders = mergeScopes [ "builders" ];
+      inherit context;
+      inherit (context) buildConfig inputs;
+    };
+    orderedInputs = attrPath: map (name: set.atOr {} ([ name ] ++ attrPath) scope.inputs) (Context.orderedInputNames context);
+    mergeScopes = attrPath: list.foldl' set.semigroup.append {} (orderedInputs attrPath);
+    flakes = Context.flakes context;
+    scope = {
+      inputs = set.map (_: name: scope.inputs.${name}) (Context.inputAliases context) // set.map (name: _:
+        flakes.${name} // flakes.${name}.builders or { } // flakes.${name}.packages or { }
+      ) context.inputs;
+      ordered = [ contextScope scope.inputs ] ++ orderedInputs [];
+      global = mergeScopes [] // contextScope;
+    };
+  in scope;
+
+  inputAliases = context: let
+    aliases = set.mapToList (name: input:
+      list.map (alias: { _0 = alias; _1 = name; }) input.flakes.config.aliases or [ ]
+    ) (Context.flakes context);
+  in set.fromList (list.concat aliases);
+
+  orderedInputNames = context:
+    set.keys (set.without [ "self" ] context.inputs) ++ list.singleton "self";
+
+  inputNames = context:
+    Context.orderedInputNames context ++ set.keys (Context.inputAliases context);
 
   importScope = context: set.optional (context.buildConfig != null) {
     inherit (context.buildConfig) localSystem crossSystem;
@@ -62,20 +76,22 @@ in {
 
   queryAll = context: { name, components, offset, ... }@arg: let
     mapScope = set.lookupAt components;
-    scopes = list.map mapScope context.scope.ordered;
+    scope = Context.scope context;
+    scopes = list.map mapScope scope.ordered;
     ordered = optional.match (list.findIndex optional.isJust scopes) {
       nothing = optional.nothing;
       just = i: list.index scopes i;
     };
   in optional.match ordered {
-    nothing = set.lookupAt components context.scope.global;
+    nothing = set.lookupAt components scope.global;
     inherit (optional) just;
   };
 
   query = context: { name, components ? [ name ], input ? null, offset ? null, optional ? false, fallback ? null, targetName ? null, ... }@arg: let
     inherit (std.lib) optional;
     arg'optional = arg.optional or false;
-    base' = if input != null then context.scope.inputs.${input} else context.scope.global;
+    scope = Context.scope context;
+    base' = if input != null then scope.inputs.${input} else scope.global;
     offsetAttr = "${offset}Packages"; # TODO: this better
     base = if offset != null then base'.${offsetAttr} else base';
     hasScope = input != null && (offset == null || base' ? ${offsetAttr});
@@ -106,8 +122,7 @@ in {
     else throw "cannot detect targetMode" + string.optional (targetName != null) " for ${targetName}"
   , overrides ? { }
   }: let
-    inputNames = set.keys context.scope.inputs;
-    callable = resolver.parseCallable inputNames target;
+    callable = resolver.parseCallable (Context.inputNames context) target;
     callArgs'' = set.map (_name: arg: Context.query context (arg // { inherit targetName; })) callable.args;
     callArgs' = set.filter (_: optional.isJust) callArgs'';
     callArgs = set.map (_: v: v.value.item) callArgs';
