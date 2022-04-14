@@ -1,22 +1,22 @@
 {
   inputs = {
-    nixpkgs.url = "nixpkgs";
-    std.url = "flakes-std";
-    flakeslib = {
+    nixpkgs.url = "github:NixOS/nixpkgs";
+    std.url = "github:flakelib/std";
+    flakelib = {
       url = "../";
       inputs = {
         std.follows = "std";
       };
     };
     flakegen = {
-      url = "github:arcnmx/flakegen";
+      url = "github:flakelib/flakegen";
       inputs = {
         nixpkgs.follows = "nixpkgs";
-        flakeslib.follows = "flakeslib";
+        flakelib.follows = "flakelib";
       };
     };
   };
-  outputs = { flakeslib, ... }@inputs: flakeslib {
+  outputs = { flakelib, ... }@inputs: flakelib {
     inherit inputs;
     checks = import ./checks.nix;
     packages = import ./packages.nix;
