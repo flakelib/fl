@@ -45,7 +45,9 @@ in {
     inherit inputs buildConfig;
   };
 
-  flakes = context: set.map (name: input: flake.loadInput context input context.inputArgs.${name} or {}) context.inputs;
+  flakes = context: set.map (name: input: let
+    args = context.inputArgs.${name} or {};
+  in flake.loadInput context input args) context.inputs;
 
   scope = context: let
     contextScope = {

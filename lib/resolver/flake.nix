@@ -20,11 +20,12 @@ in {
     isBuild = context.buildConfig != null;
     isNative = isBuild && Context.BuildConfig.isNative context.buildConfig;
     useNative = isNative && args == { };
+    ioutputs = input.flake.outputs or input;
     outputs = { # TODO: do not use `outputs` since it already exists? or idk :<
-      packages = input.packages.${system} or { };
-      legacyPackages = input.legacyPackages.${system} or { };
-      checks = input.checks.${system} or { };
-      apps = input.apps.${system} or { };
+      packages = ioutputs.packages.${system} or { };
+      legacyPackages = ioutputs.legacyPackages.${system} or { };
+      checks = ioutputs.checks.${system} or { };
+      apps = ioutputs.apps.${system} or { };
     };
     imported = flake.importInput context input args;
     nativePackages = outputs.legacyPackages // outputs.packages;

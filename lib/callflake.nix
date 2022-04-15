@@ -25,8 +25,14 @@ in {
   staticContext = buildConfig: Context.new { inherit inputs buildConfig; };
   buildConfigForSystem = system: Context.BuildConfig.new { inherit system; };
   staticContextForSystem = system: staticContext (buildConfigForSystem system);
-  buildAttrs = set.retain buildAttrNames args;
+  buildAttrs = set.retain (buildAttrNames ++ [ "builders" ]) args;
   staticBuildAttrs = set.map callWithSystems buildAttrs;
+  staticBuildAttrs'filtered = set.map (name: systems: let
+    isAvailable = drv: let
+      available = builtins.tryEval (drv.meta.available or true == true);
+    in !available.success || available.value;
+    mapSys = system: packages: set.filter (_: isAvailable) packages;
+  in set.map mapSys systems) staticBuildAttrs;
   flakes = {
     inherit systems;
     config = config // {
@@ -43,6 +49,7 @@ in {
     impure = inputs.self.flakes.import {
       buildConfig = Context.BuildConfig.new { system = builtins.currentSystem; };
     };
+    outputs = staticBuildAttrs // staticAttrs;
   };
   staticAttrs = {
     inherit flakes;
@@ -57,4 +64,4 @@ in {
       context = Context.new { inherit inputs; };
     };
   };
-in staticBuildAttrs // staticAttrs
+in set.without [ "builders" ] staticBuildAttrs'filtered // staticAttrs
