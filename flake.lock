@@ -1,7 +1,19 @@
 {
   "nodes": {
+    "fl-config": {
+      "locked": {
+        "narHash": "sha256-PvB9ha0r4w6p412MBPP71kS/ZTBnOjxL0brlmyucPBA=",
+        "path": "/nix/store/xi0h2qpxnz8pa9c1n6r1pylrbcb8p3ar-source/config",
+        "type": "path"
+      },
+      "original": {
+        "path": "/nix/store/xi0h2qpxnz8pa9c1n6r1pylrbcb8p3ar-source/config",
+        "type": "path"
+      }
+    },
     "root": {
       "inputs": {
+        "fl-config": "fl-config",
         "std": "std"
       }
     },

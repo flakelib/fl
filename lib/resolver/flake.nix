@@ -72,7 +72,7 @@ in {
 
     # orderedInputNames :: Inputs -> [InputName]
     orderedInputNames = inputs:
-      list.singleton "self" ++ set.keys (set.without [ "self" ] inputs.inputs);
+      list.singleton "self" ++ set.keys (set.without [ "self" ] (Inputs.filteredInputs inputs));
 
     # orderedInputs :: Inputs -> [Input]
     orderedInputs = inputs: list.map (name: Inputs.inputAt inputs) (Inputs.orderedInputNames inputs);
