@@ -91,4 +91,13 @@
       inherit name command;
     } // args);
   in fn;
+
+  devShell = { shellCommand }: let
+  in {
+    name ? "devShell"
+  , ... }@args: shellCommand ({
+    inherit name;
+    # TODO: build an environment output like nixexprs/mkShellEnv
+    command = "echo devShell cannot be built";
+  } // args);
 }

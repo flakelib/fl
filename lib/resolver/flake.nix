@@ -118,8 +118,8 @@ in {
     contextOutputs = call: set.map (_: Context.outputs) (CallFlake.nativeContexts call);
     nativeOutputs = call: let
       contextOutputs = CallFlake.contextOutputs call;
-      packageSets = set.retain (FlakeInput.NativePackageSetAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
-    in set.map (name: _: set.map (system: outputs: outputs.${name}) contextOutputs) packageSets;
+      packageAttrs = set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
+    in set.map (name: _: set.map (system: outputs: outputs.${name}) contextOutputs) packageAttrs;
     staticOutputs = call: set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
     outputs = call: let
       nativeOutputs = CallFlake.nativeOutputs call;

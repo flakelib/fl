@@ -17,9 +17,10 @@
       };
       checks = import ./checks.nix;
       builders = import ./builders.nix;
+      devShells = import ./shells.nix;
     };
   in {
-    inherit (flake) flakes checks builders;
+    inherit (flake) flakes checks builders devShells;
     lib = import ./lib {
       inherit self std;
     };

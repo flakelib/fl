@@ -1,0 +1,4 @@
+{
+  default = { devShell }: devShell {
+  };
+}
