@@ -9,7 +9,19 @@
     inherit tier1 tier2 tier3;
   };
 
-  callFlake = import ./callflake.nix inputs;
+  inherit (import ./resolver/context.nix inputs)
+    Context ScopedContext;
 
-  resolver = import ./resolver inputs;
+  inherit (import ./resolver/flake.nix inputs)
+    BuildConfig System
+    FlakeInput FlConfig FlakeType
+    Inputs Input InputConfig
+    CallFlake InputOutputs ImportMethod QueryScope;
+
+  inherit (import ./resolver/resolver.nix inputs)
+    Callable ArgDesc Offset;
+
+  util = import ./resolver/util.nix inputs;
+
+  callFlake = import ./callflake.nix inputs;
 }

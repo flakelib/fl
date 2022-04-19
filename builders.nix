@@ -39,10 +39,15 @@
     '';
   });
 
-  shellCommand = { buildConfig }: let
+  shellCommand = { lib, buildConfig }: let
+    inherit (lib) nullable flakelib;
+    inherit (flakelib) BuildConfig;
     bc' = buildConfig;
     fn = {
-      system ? buildConfig.localSystem.system or (throw "system must be supplied")
+      system ? nullable.match buildConfig {
+        just = BuildConfig.localDouble;
+        nothing = throw "system must be supplied";
+      }
     , buildConfig ? bc'
     , command
     , pname ? "shell"
@@ -62,8 +67,8 @@
     }@attrs: let
       crossAware = attrs.arg'crossAware or false;
       targetAware = attrs.arg'targetAware or false;
-      localSystem = buildConfig.localSystem.system or system;
-      crossSystem = buildConfig.crossSystem.system or localSystem;
+      localSystem = BuildConfig.localDouble buildConfig;
+      crossSystem = BuildConfig.crossDouble buildConfig;
       drvArgs = removeAttrs attrs [ "command" "arg'crossAware" "arg'targetAware" "arg'asFile" "arg'toFile" "passthru" ] // {
         inherit name system args builder;
         ${if arg'asFile then "command" else null} = command;
@@ -73,8 +78,8 @@
         ${if crossAware then "crossSystem" else null} = crossSystem;
         ${if targetAware then "targetSystem" else null} = buildConfig.targetSystem.system or crossSystem;
         ${if (crossAware || targetAware) && args.__structuredAttrs or false && buildConfig != null then "buildConfig" else null} = {
-          ${if crossAware then "crossSystem" else null} = buildConfig.crossSystem;
-          ${if crossAware then "localSystem" else null} = buildConfig.localSystem;
+          ${if crossAware then "crossSystem" else null} = buildConfig.crossSystem.system or null;
+          ${if crossAware then "localSystem" else null} = buildConfig.localSystem.system;
           ${if targetAware then "targetSystem" else null} = buildConfig.targetSystem;
         };
       };

@@ -7,11 +7,11 @@
     },
     "std": {
       "locked": {
-        "lastModified": 1649814279,
-        "narHash": "sha256-laOWeW3D9laGwRRZq+1xtm8R9ZBHaVsZ7S3nYegiUjs=",
+        "lastModified": 1650329036,
+        "narHash": "sha256-z5W9NPTAlURHc5fMQVtQfXiPanHzH6GXHQf7zoewKyg=",
         "owner": "flakelib",
         "repo": "std",
-        "rev": "d614857f99c79a32e30ab190c0eb1bac0b1164e4",
+        "rev": "f85b486027aaa86cd477149e20126b59dec1d935",
         "type": "github"
       },
       "original": {

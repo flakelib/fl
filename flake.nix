@@ -1,4 +1,5 @@
 {
+  description = "nix flakes infrastructure";
   inputs = {
     std.url = "github:flakelib/std";
   };
@@ -7,6 +8,12 @@
       inherit inputs;
       config = {
         name = "flakelib";
+        inputs = {
+          std = {
+            type = self.lib.FlakeType.Lib;
+            lib.namespace = [ ];
+          };
+        };
       };
       checks = import ./checks.nix;
       builders = import ./builders.nix;
