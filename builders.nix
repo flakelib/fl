@@ -40,7 +40,7 @@
   });
 
   shellCommand = { lib, buildConfig }: let
-    inherit (lib) nullable flakelib;
+    inherit (lib) nullable string list set types flakelib;
     inherit (flakelib) BuildConfig;
     bc' = buildConfig;
     fn = {
@@ -59,6 +59,7 @@
       else [ "-c" command ])
     , builder ? "/bin/sh"
     , passthru ? { }
+    , PATH ? [ ]
     , arg'crossAware ? arg'targetAware
     , arg'targetAware ? false
     , arg'asFile ? false
@@ -69,8 +70,26 @@
       targetAware = attrs.arg'targetAware or false;
       localSystem = BuildConfig.localDouble buildConfig;
       crossSystem = BuildConfig.crossDouble buildConfig;
+      hasPath = attrs ? PATH;
+      references = list.filter types.drv.check (set.values attrs)
+        ++ list.optionals (hasPath && builtins.isList PATH) (list.filter types.drv.check PATH);
+      mapPathInput = input: "${input.bin or input}/bin"; # TODO: splicing and lib.drv
+      path = if builtins.isList attrs.PATH then string.concatSep ":" (list.map mapPathInput PATH) else PATH;
+      checkPlatform =
+        if meta.platforms == null then true
+        else nullable.match buildConfig {
+          just = bc: list.elem (BuildConfig.hostDouble bc) meta.platforms;
+          nothing = true; # TODO: think about this
+        };
+      meta = passthru.meta or { } // {
+        platforms = passthru.meta.platforms or null;
+        broken = passthru.meta.broken or false;
+        unsupported = passthru.meta.unsupported or (!checkPlatform);
+        available = !meta.broken && !meta.unsupported && list.all (input: input.meta.available or true) references;
+      };
       drvArgs = removeAttrs attrs [ "command" "arg'crossAware" "arg'targetAware" "arg'asFile" "arg'toFile" "passthru" ] // {
         inherit name system args builder;
+        ${if hasPath then "PATH" else null} = path;
         ${if arg'asFile then "command" else null} = command;
         ${if arg'asFile then "passAsFile" else null} = attrs.passAsFile or [ ] ++ [ "command" ];
 
@@ -83,7 +102,9 @@
           ${if targetAware then "targetSystem" else null} = buildConfig.targetSystem;
         };
       };
-    in derivation drvArgs // passthru;
+    in derivation drvArgs // passthru // {
+      inherit meta;
+    };
   in fn;
 
   runShellCommand = { shellCommand }: let

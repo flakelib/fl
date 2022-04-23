@@ -4,10 +4,13 @@ in {
   mainProgram = checkCommand {
     name = "mainProgram-check";
     command = "[[ $(${mainProgram hello} -g hihi) = hihi ]]";
+    inherit hello;
   };
   systemsUpToDate = checkCommand {
     name = "systems.nix-upToDate-check";
-    command = "[[ $(cat ${systems}) = $(cat ${../lib/systems.nix}) ]]";
+    command = "[[ $(cat $systems) = $(cat $systems_nix) ]]";
+    inherit systems;
+    systems_nix = ../lib/systems.nix;
   };
 } // callPackageSet {
   broken-package = { broken-package }: checkCommand {
