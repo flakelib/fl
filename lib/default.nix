@@ -15,7 +15,7 @@
   inherit (import ./resolver/flake.nix inputs)
     BuildConfig System
     FlakeInput FlConfig FlData FlakeType
-    InputConfig
+    InputConfig FlakeImporters
     CallFlake InputOutputs ImportMethod QueryScope;
 
   inherit (import ./resolver/resolver.nix inputs)

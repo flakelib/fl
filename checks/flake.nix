@@ -17,9 +17,16 @@
       };
     };
   };
-  outputs = { flakelib, ... }@inputs: flakelib {
+  outputs = { flakelib, std, nixpkgs, ... }@inputs: flakelib {
     inherit inputs;
+    systems = flakelib.lib.supportedSystems.tier2 ++ [
+      {
+        localSystem = "x86_64-linux";
+        crossSystem = nixpkgs.lib.systems.elaborate nixpkgs.lib.systems.examples.avr;
+      }
+    ];
     config = {
+      name = "fl-checks";
       inputs = {
         std.aliases = [ "std2" ];
       };

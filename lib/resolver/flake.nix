@@ -4,7 +4,7 @@
     BuildConfig System
     CallFlake Context
     FlakeInput FlConfig FlData FlakeType
-    InputConfig
+    InputConfig FlakeImporters
     InputOutputs ImportMethod QueryScope
     Offset;
 in {
@@ -261,8 +261,10 @@ in {
 
     Importer = {
       # TODO: make these attrs lazy, also expose `extraOutputs` for unknown attrs
-      ${ImportMethod.DefaultImport} = { flakeInput, inputConfig, context }: let
-      in throw "TODO:Importer.DefaultImport of ${InputConfig.inputName inputConfig}";
+      ${ImportMethod.DefaultImport} = { flakeInput, inputConfig, context }: (InputConfig.defaultImport inputConfig).value {
+        inherit flakeInput inputConfig;
+        inherit (context) buildConfig;
+      };
 
       # TODO: inputConfig should be able to shape the CallFlake/Context in some way
       ${ImportMethod.FlImport} = { flakeInput, inputConfig, context }: let
@@ -297,7 +299,7 @@ in {
     in {
       ${ImportMethod.Self} = InputConfig.isSelf inputConfig;
       ${ImportMethod.Pure} = isFlake;
-      ${ImportMethod.Native} = isFlake && (buildConfig == null || !eager || FlakeInput.hasNative flakeInput buildConfig);
+      ${ImportMethod.Native} = isFlake && (buildConfig == null || FlakeInput.hasNative flakeInput buildConfig);
       ${ImportMethod.FlImport} = flType == FlakeType.Fl || optional.isJust (FlakeInput.flData flakeInput);
       #${ImportMethod.DefaultImport} = optional.isJust (FlakeInput.defaultImportPath flakeInput);
       ${ImportMethod.DefaultImport} = optional.isJust (InputConfig.defaultImport inputConfig);
@@ -310,10 +312,8 @@ in {
     }: let
       preference = list.singleton ImportMethod.Self ++ (if buildConfig == null then [
         ImportMethod.Pure ImportMethod.DefaultImport
-      ] else if BuildConfig.isNative buildConfig then [
-        ImportMethod.Native ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
       ] else [
-        ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
+        ImportMethod.Native ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
       ]);
       first = list.findIndex (importMethod: nullable.match inputConfig {
         just = inputConfig: ImportMethod.supportsInput importMethod {
@@ -332,6 +332,25 @@ in {
     in optional.match first {
       nothing = throw "Failed to select ImportMethod for ${input'desc}${bc'desc}";
       just = list.index preference;
+    };
+  };
+
+  FlakeImporters = {
+    nixpkgs = { flakeInput, buildConfig, ... }: {
+      inherit (flakeInput) lib;
+      legacyPackages = import (flakeInput.outPath + "/default.nix") rec {
+        localSystem = System.serialize (BuildConfig.localSystem buildConfig);
+        crossSystem = optional.match (BuildConfig.crossSystem buildConfig) {
+          just = System.serialize;
+          nothing = localSystem;
+        };
+        # TODO: populate from inputConfig in some way
+        config = {
+          checkMetaRecursively = true;
+        };
+        overlays = [ ];
+        crossOverlays = [ ];
+      };
     };
   };
 
@@ -455,13 +474,16 @@ in {
       inherit name config;
     };
 
-    Default = name: InputConfig.new { inherit name; };
-
-    # AllInputConfigs :: inputs -> {InputConfig}
-    AllInputConfigs = { self, ...}@inputs: set.map (name: _: InputConfig.new {
+    Default = name: let
+      defaultConfigs = {
+        nixpkgs = {
+          import.${ImportMethod.DefaultImport} = FlakeImporters.nixpkgs;
+        };
+      };
+    in InputConfig.new {
       inherit name;
-      config = self.flakes.config.inputs.${name} or { };
-    }) inputs;
+      config = defaultConfigs.${name} or { };
+    };
 
     inputName = inputConfig: inputConfig.name;
     configData = inputConfig: inputConfig.config;
