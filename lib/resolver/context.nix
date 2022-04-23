@@ -96,7 +96,6 @@ in {
           inherit outputs;
           scope = QueryScope.Lib;
           path = [ "lib" ];
-          target = args.lib;
         }) args.lib (Context.callArgsFor context [ "lib" ]);
         ${attrOf "overlay"} = mapDefault outputs.overlays function.id args.overlay;
         ${attrOf "nixosModule"} = mapDefault outputs.nixosModules function.id args.nixosModule;
