@@ -30,6 +30,7 @@ in {
           buildConfig = BuildConfig.Impure;
         };
       };
+      outputs = CallFlake.outputs call;
     };
 
     flConfig = call: FlConfig.new {
@@ -57,6 +58,15 @@ in {
       filteredNativeOutputs = CallFlake.filteredNativeOutputs call;
     in CallFlake.staticOutputs call // filteredNativeOutputs // {
       flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs filteredNativeOutputs;
+    };
+    nativeOutputs = call: let
+      contextOutputs = CallFlake.contextOutputs call;
+      packageAttrs = set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
+    in set.map (name: _: set.map (system: outputs: outputs.${name}) contextOutputs) packageAttrs;
+    outputs = call: let
+      nativeOutputs = CallFlake.nativeOutputs call;
+    in CallFlake.staticOutputs call // nativeOutputs // {
+      flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs nativeOutputs;
     };
 
     self = call: call.inputs.self or (throw "who am i?");
