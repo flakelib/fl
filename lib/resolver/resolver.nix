@@ -93,15 +93,17 @@ in {
     in arg // set.filter (_: v: v != null) new';
 
     describe = arg: let
+      name = ArgDesc.displayName arg;
       inputName = nullable.functor.map (i: "${i}'") arg.inputName;
       offset = nullable.functor.map (o: "'${o}") arg.offset;
-      components = nullable.functor.map (c: "${string.concatSep "." c}") arg.components;
+      components = if arg.components == [ name ] then null
+        else nullable.functor.map (c: "${string.concatSep "." c}") arg.components;
       at = string.optional (inputName != null || components != null) "@";
       fallback = nullable.functor.map (f: optional.match f {
         just = f: " ? ${f}";
         nothing = "?";
       }) arg.fallback;
-      desc = [ (ArgDesc.displayName arg) offset at inputName components fallback ];
+      desc = [ name offset at inputName components fallback ];
     in string.concat (list.filter (v: v != null) desc);
 
     semigroup = {
