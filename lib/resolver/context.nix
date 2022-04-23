@@ -27,11 +27,14 @@ in {
       };
     in context;
 
-    byOffset = context: offset:
-      if optional.isNothing (Context.buildConfig context) || Context.isNative context then context
-      else Context.new {
-        inherit (context) call;
-        buildConfig = BuildConfig.byOffset offset;
+    byOffset = context: offset: optional.match (Context.buildConfig context) {
+      nothing = context;
+      just = buildConfig:
+        if Context.isNative context then context
+        else Context.new {
+          inherit (context) call;
+          buildConfig = BuildConfig.byOffset buildConfig offset;
+        };
       };
 
     byBuildConfig = context: buildConfig: Context.new {
@@ -138,6 +141,11 @@ in {
       path = scoped.path ++ (if (types.listOf types.string).check path then path else list.singleton path);
     };
 
+    byOffset = scoped: offset: scoped // {
+      # TODO: use new
+      context = Context.byOffset scoped.context offset;
+    };
+
     global = scoped: Context.globalScope scoped.context // {
       callPackage = ScopedContext.callPackage scoped;
       callPackages = ScopedContext.callPackages scoped;
@@ -153,10 +161,11 @@ in {
 
     # queryAll :: ScopedContext -> { arg: ArgDesc, scope: QueryScope } -> Optional x
     queryAll = scoped: { arg }: let
+      scoped' = ScopedContext.byOffset scoped (ArgDesc.offset arg);
       lookup = set.lookupAt (ArgDesc.components arg);
       queries = list.map lookup [
-        (ScopedContext.global scoped)
-        (ScopedContext.specific scoped)
+        (ScopedContext.global scoped')
+        (ScopedContext.specific scoped')
       ];
     in optional.match (list.findIndex optional.isJust queries) {
       nothing = optional.nothing;
@@ -166,7 +175,7 @@ in {
     # queryInput :: ScopedContext -> { arg: ArgDesc, scope: QueryScope, flake: Flake } -> Optional x
     queryInput = scoped: { arg, inputName }: let
       context = Context.byOffset scoped.context (ArgDesc.offset arg);
-      io = scoped.context.inputOutputs.${inputName};
+      io = context.inputOutputs.${inputName};
       scope = {
         pkgs = InputOutputs.pkgs io;
         lib = InputOutputs.lib io;
