@@ -80,7 +80,11 @@ in {
     inputAliases = call: let
       inputConfigs = CallFlake.inputConfigs call;
       aliasPairs = name: inputConfig: list.map (alias: { _0 = alias; _1 = name; }) (InputConfig.aliases inputConfig);
-    in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs));
+      selfAlias = optional.match (FlConfig.name (CallFlake.flConfig call)) {
+        just = name: list.singleton { _0 = name; _1 = "self"; };
+        nothing = list.nil;
+      };
+    in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs) ++ selfAlias);
 
     # allInputNames :: CallFlake -> [InputName]
     allInputNames = call: CallFlake.orderedInputNames call ++ set.keys (CallFlake.inputAliases call);
