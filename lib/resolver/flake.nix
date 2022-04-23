@@ -22,11 +22,8 @@ in {
 
     flOutput = call: {
       inherit (call) config args;
-      systems = set.fromList (list.map (bc: {
-        _0 = BuildConfig.attrName bc;
-        _1 = BuildConfig.serialize bc;
-      }) call.buildConfigs);
-      import = { buildConfig }: (CallFlake.self call) // (Context.outputs Context.byBuildConfig (CallFlake.staticContext call));
+      systems = set.map (_: BuildConfig.serialize) call.buildConfigs;
+      import = { buildConfig }: (CallFlake.self call) // (Context.outputs (Context.byBuildConfig (CallFlake.staticContext call) buildConfig));
       impure = (CallFlake.flOutput call).import {
         context = Context.new {
           inherit call;
@@ -40,8 +37,7 @@ in {
     };
     args = call: call.args;
     staticContext = call: Context.new { inherit call; };
-    nativeContexts = call: set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) (CallFlake.buildConfigs call);
-    buildConfigs = call: set.fromList (list.map (bc: { _0 = BuildConfig.attrName bc; _1 = bc; }) call.buildConfigs);
+    nativeContexts = call: set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) call.buildConfigs;
     contextOutputs = call: set.map (_: Context.outputs) (CallFlake.nativeContexts call);
     staticOutputs = call: set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
     filteredNativeOutputs = call: let
@@ -143,7 +139,7 @@ in {
     # flConfig :: FlakeInput -> FlConfig
     flConfig = flakeInput: FlConfig.withFlakeInput { inherit flakeInput; };
 
-    # flData :: FlakeInput -> FlData
+    # flData :: FlakeInput -> Optional FlData
     flData = flakeInput: bool.toOptional (FlakeInput.isFl flakeInput) (FlData.withFlakeInput { inherit flakeInput; });
 
     isAvailable = fi: (builtins.tryEval (fi ? sourceInfo)).success;
@@ -353,8 +349,8 @@ in {
 
     withFlakeInput = {
       flakeInput
-    }: FlConfig.new {
-      config = flakeInput.${FlakeInput.FlOutput} or { };
+    }: FlData.new {
+      data = flakeInput.${FlakeInput.FlOutput} or { };
     };
 
     # data :: FlData -> set

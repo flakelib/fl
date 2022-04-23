@@ -21,7 +21,11 @@ in {
 }@args: let
   call = CallFlake.new {
     inherit inputs config;
-    buildConfigs = list.map BuildConfig systems;
+    buildConfigs = if builtins.isList systems
+      then set.fromList (list.map (system: let
+        bc = BuildConfig system;
+      in { _0 = BuildConfig.attrName bc; _1 = bc; }) systems)
+      else set.map (_: BuildConfig) systems;
     args = set.without [ "systems" "config" "inputs" ] args;
   };
 in CallFlake.filteredOutputs call
