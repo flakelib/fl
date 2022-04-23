@@ -6,4 +6,8 @@
     genSystems = ./gen-systems.sh;
     PATH = lib.makeBinPath [ coreutils nix-check'build ];
   };
+  broken-package = { stdenvNoCC }: stdenvNoCC.mkDerivation {
+    name = "broken";
+    meta.platforms = [ ];
+  };
 }

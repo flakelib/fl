@@ -43,17 +43,25 @@ in {
     nativeContexts = call: set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) (CallFlake.buildConfigs call);
     buildConfigs = call: set.fromList (list.map (bc: { _0 = BuildConfig.attrName bc; _1 = bc; }) call.buildConfigs);
     contextOutputs = call: set.map (_: Context.outputs) (CallFlake.nativeContexts call);
-    nativeOutputs = call: let
+    staticOutputs = call: set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
+    filteredNativeOutputs = call: let
       contextOutputs = CallFlake.contextOutputs call;
       packageAttrs = set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
-    in set.map (name: _: set.map (system: outputs: outputs.${name}) contextOutputs) packageAttrs;
-    staticOutputs = call: set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
-    outputs = call: let
-      nativeOutputs = CallFlake.nativeOutputs call;
-    in CallFlake.staticOutputs call // nativeOutputs // {
-      flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs nativeOutputs;
+      filterOutput = name: output: let
+        available = builtins.tryEval (output.meta.available or true);
+      in available.value || !available.success;
+      filterOutputs = name: outputs: rec {
+        # TODO: how to handle apps and devShells?
+        checks = set.filter filterOutput outputs;
+        packages = checks; # TODO: consider set.map'ing anything broken into an unbuildable derivation instead
+        legacyPackages = builtins.trace "TODO:CallFlake.filteredNativeOutputs/filterOutputs/legacyPackages" packages;
+      }.${name} or outputs;
+    in set.map (name: _: set.map (system: outputs: filterOutputs name outputs.${name}) contextOutputs) packageAttrs;
+    filteredOutputs = call: let
+      filteredNativeOutputs = CallFlake.filteredNativeOutputs call;
+    in CallFlake.staticOutputs call // filteredNativeOutputs // {
+      flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs filteredNativeOutputs;
     };
-    filteredOutputs = call: builtins.trace "TODO:CallFlake.filteredOutputs" CallFlake.outputs call;
 
     self = call: call.inputs.self or (throw "who am i?");
     flakeInputs = call: call.inputs;
