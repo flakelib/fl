@@ -24,6 +24,10 @@
         localSystem = "x86_64-linux";
         crossSystem = nixpkgs.lib.systems.elaborate nixpkgs.lib.systems.examples.avr;
       }
+      {
+        localSystem = "x86_64-linux";
+        crossSystem = nixpkgs.lib.systems.elaborate nixpkgs.lib.systems.examples.aarch64-multiplatform;
+      }
     ];
     config = {
       name = "fl-checks";
