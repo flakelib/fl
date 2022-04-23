@@ -26,7 +26,7 @@ in {
         _0 = BuildConfig.attrName bc;
         _1 = BuildConfig.serialize bc;
       }) call.buildConfigs);
-      import = throw "TODO:flakes/import";
+      import = { buildConfig }: (CallFlake.self call) // (Context.outputs Context.byBuildConfig (CallFlake.staticContext call));
       impure = (CallFlake.flOutput call).import {
         context = Context.new {
           inherit call;
@@ -179,7 +179,7 @@ in {
       nativeBuilders = set.retain FlakeInput.FlNativeAttrs fi.flakes or { };
       nativeAttrs = set.retain FlakeInput.NativeAttrs fi // nativeBuilders;
       error = name: throw "flake input ${FlakeInput.describe fi} is missing output ${name} for ${BuildConfig.describe buildConfig}";
-      mapAttr = name: attr: attr.${BuildConfig.localDouble buildConfig} or (error name);
+      mapAttr = name: attr: attr.${BuildConfig.attrName buildConfig} or (error name);
     in set.map mapAttr nativeAttrs;
 
     outputs = fi: { buildConfig ? null }: let
@@ -264,18 +264,17 @@ in {
       ${ImportMethod.DefaultImport} = { flakeInput, inputConfig, context }: let
       in throw "TODO:Importer.DefaultImport of ${InputConfig.inputName inputConfig}";
 
+      # TODO: inputConfig should be able to shape the CallFlake/Context in some way
       ${ImportMethod.FlImport} = { flakeInput, inputConfig, context }: let
-      in throw "TODO:Importer.FlImport of ${InputConfig.inputName inputConfig}";
+      in flakeInput.${FlakeInput.FlOutput}.import { inherit (context) buildConfig; };
 
-      ${ImportMethod.Native} = { flakeInput, inputConfig, context }: let
-        system = BuildConfig.localDouble context.buildConfig;
-      in flakeInput // FlakeInput.nativeOutputs flakeInput { inherit (context) buildConfig; };
+      # TODO: inputConfig should shape buildConfig resolution in some way
+      ${ImportMethod.Native} = { flakeInput, inputConfig, context }: flakeInput
+        // FlakeInput.nativeOutputs flakeInput { inherit (context) buildConfig; };
 
-      ${ImportMethod.Pure} = { flakeInput, inputConfig, context }: let
-      in FlakeInput.staticOutputs flakeInput;
+      ${ImportMethod.Pure} = { flakeInput, inputConfig, context }: FlakeInput.staticOutputs flakeInput;
 
-      ${ImportMethod.Self} = { flakeInput, inputConfig, context }: let
-      in flakeInput // Context.outputs context;
+      ${ImportMethod.Self} = { flakeInput, inputConfig, context }: flakeInput // Context.outputs context;
     };
 
     # TODO: recursive merges
