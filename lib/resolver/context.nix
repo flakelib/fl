@@ -5,7 +5,7 @@
     Callable Injectable ArgDesc
     CallFlake Context ScopedContext
     BuildConfig System Offset
-    Inputs Input FlakeInput InputConfig FlConfig
+    FlakeInput InputConfig FlConfig
     InputOutputs;
 in {
   Context = {
@@ -15,10 +15,15 @@ in {
       call
     , buildConfig ? null
     }: let
+      inputConfigs = CallFlake.inputConfigs call;
       context = {
         type = Context.TypeId;
         inherit call buildConfig;
-        inputOutputs = Inputs.inputOutputs call.inputs { inherit context; };
+        inputOutputs = set.map (name: flakeInput: InputOutputs.new rec {
+          inherit context flakeInput;
+          inputConfig = inputConfigs.${name};
+          importMethod = optional.toNullable (InputConfig.importMethod inputConfig);
+        }) (CallFlake.filteredInputs call);
       };
     in context;
 
@@ -38,12 +43,12 @@ in {
       inherit context;
     } // args);
 
-    callArgsFor = context: path: set.atOr { } path (FlConfig.callArgs (FlakeInput.flConfig (Inputs.self context.call.inputs)));
+    callArgsFor = context: path: set.atOr { } path (FlConfig.callArgs (FlakeInput.flConfig (CallFlake.flConfig context.call)));
 
     isNative = context: optional.isJust (Context.buildConfig context) && BuildConfig.isNative context.buildConfig;
     orderedInputOutputs = context: list.map (name:
       set.get name context.inputOutputs
-    ) (Inputs.orderedInputNames context.call.inputs);
+    ) (CallFlake.orderedInputNames context.call);
     orderedOutputs = context: list.map (io: InputOutputs.outputs io) (Context.orderedInputOutputs context);
 
     buildConfig = context: optional.fromNullable context.buildConfig;
@@ -59,7 +64,7 @@ in {
       callPackage = Context.callPackage context;
       callPackages = Context.callPackages context;
       callPackageSet = Context.callPackageSet context;
-      inputs = Inputs.flakeInputs context.call.inputs;
+      inputs = CallFlake.flakeInputs context.call;
       outputs = InputOutputs.outputs context.inputOutputs.self;
       pkgs = InputOutputs.MergeScopes (list.map (io: InputOutputs.namespacedPkgs io) (Context.orderedInputOutputs context));
       lib = InputOutputs.MergeScopes (list.map (io: InputOutputs.namespacedLib io) (Context.orderedInputOutputs context));
@@ -106,7 +111,7 @@ in {
     in outputs;
 
     describe = context: let
-      self = Inputs.describe context.call.inputs;
+      self = CallFlake.describe context.call;
       bc = optional.match (Context.buildConfig context) {
         just = bc: "(${BuildConfig.describe bc})";
         nothing = "";
@@ -160,9 +165,9 @@ in {
     };
 
     # queryInput :: ScopedContext -> { arg: ArgDesc, scope: QueryScope, flake: Flake } -> Optional x
-    queryInput = scoped: { arg, input }: let
+    queryInput = scoped: { arg, inputName }: let
       context = Context.byOffset scoped.context (ArgDesc.offset arg);
-      io = scoped.context.inputOutputs.${InputConfig.inputName (Input.inputConfig input)};
+      io = scoped.context.inputOutputs.${inputName};
       scope = {
         pkgs = InputOutputs.pkgs io;
         lib = InputOutputs.lib io;
@@ -177,7 +182,7 @@ in {
     query = scoped: { arg }: optional.match (ArgDesc.inputName arg) {
       just = inputName: ScopedContext.queryInput scoped {
         inherit arg;
-        input = optional.match (Inputs.inputLookup scoped.context.call.inputs inputName) {
+        inputName = optional.match (CallFlake.canonicalizeInputName scoped.context.call inputName) {
           just = function.id;
           nothing = throw "Input ${inputName} not found for ${ArgDesc.describe arg} in ${ScopedContext.describe scoped}";
         };
@@ -191,7 +196,7 @@ in {
       inherit (scoped) context;
       callable = Callable.new {
         inherit fn;
-        inputNames = Inputs.inputNames context.call.inputs;
+        inputNames = CallFlake.allInputNames context.call;
       };
       autofill = name: arg: let
         nothing = throw "could not find ${ArgDesc.describe arg} while evaluating ${ScopedContext.describe scoped}";

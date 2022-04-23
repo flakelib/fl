@@ -19,7 +19,6 @@ in {
 , systems ? supportedSystems.tier2
 , config ? { }
 }@args: let
-  inputs = Inputs.withFlakeInputs args.inputs;
   call = CallFlake.new {
     inherit inputs config;
     buildConfigs = list.map BuildConfig systems;

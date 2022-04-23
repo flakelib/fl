@@ -3,83 +3,11 @@
   inherit (self.lib)
     BuildConfig System
     CallFlake Context
-    FlakeInput FlConfig FlakeType
-    Inputs Input InputConfig
+    FlakeInput FlConfig FlData FlakeType
+    InputConfig
     InputOutputs ImportMethod QueryScope
     Offset;
 in {
-  Inputs = {
-    TypeId = "fl:Inputs";
-    new = {
-      inputs
-    }: {
-      type = Inputs.TypeId;
-      inherit inputs;
-    };
-
-    __functor = Inputs: inputs: Inputs.new {
-      inherit inputs;
-    };
-
-    # withFlakeInputs :: {FlakeInput} -> Inputs
-    withFlakeInputs = { self, ... }@inputs: let
-      inputConfigs = InputConfig.AllInputConfigs inputs;
-      newInput = name: flakeInput: Input.new {
-        inherit flakeInput;
-        inputConfig = inputConfigs.${name};
-      };
-    in Inputs.new {
-      inputs = set.map newInput inputs;
-    };
-
-    inputs = inputs: inputs.inputs;
-    self = inputs: inputs.inputs.self or (throw "who am i?");
-    flakeInputs = inputs: set.map (_: Input.flakeInput) inputs.inputs;
-    inputConfigs = inputs: set.map (_: Input.inputConfig) inputs.inputs;
-    inputOutputs = inputs: { context }: set.map (_: input: InputOutputs.new {
-      inherit input context;
-      importMethod = optional.toNullable (InputConfig.importMethod (Input.inputConfig input));
-    }) (Inputs.filteredInputs inputs);
-
-    filteredInputs = inputs: set.filter (name: input: FlakeType.isInput (InputConfig.flType input.inputConfig)) inputs.inputs;
-
-    # inputLookup :: Inputs -> string -> Optional Input
-    inputLookup = inputs: name: let
-      lookup = function.flip set.lookup inputs.inputs;
-      aliases = set.map (alias: lookup) (Inputs.inputAliases inputs);
-    in optional.match (lookup name) {
-      inherit (optional) just;
-      nothing = optional.match (set.lookup name aliases) {
-        inherit (optional) nothing;
-        just = function.id;
-      };
-    };
-
-    # inputLookup :: Inputs -> string -> Input
-    inputAt = inputs: name: optional.match (Inputs.inputLookup inputs name) {
-      just = function.id;
-      nothing = throw "inputs.${name} not found in ${Inputs.describe inputs}";
-    };
-
-    # inputAliases :: Inputs -> { string => InputName }
-    inputAliases = inputs: let
-      inputConfigs = Inputs.inputConfigs inputs;
-      aliasPairs = name: inputConfig: list.map (alias: { _0 = alias; _1 = name; }) (InputConfig.aliases inputConfig);
-    in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs));
-
-    # allInputNames :: Inputs -> [InputName]
-    inputNames = inputs: Inputs.orderedInputNames inputs ++ set.keys (Inputs.inputAliases inputs);
-
-    # orderedInputNames :: Inputs -> [InputName]
-    orderedInputNames = inputs:
-      list.singleton "self" ++ set.keys (set.without [ "self" ] (Inputs.filteredInputs inputs));
-
-    # orderedInputs :: Inputs -> [Input]
-    orderedInputs = inputs: list.map (name: Inputs.inputAt inputs) (Inputs.orderedInputNames inputs);
-
-    describe = inputs: Input.describe (Inputs.self inputs);
-  };
-
   CallFlake = {
     TypeId = "fl:CallFlake";
     new = {
@@ -107,9 +35,8 @@ in {
       };
     };
 
-    flData = inputs: optional.match (FlakeInput.flData (Input.flakeInput (Inputs.self inputs))) {
-      just = function.id;
-      nothing = throw "inputs.self.flakes not found";
+    flConfig = call: FlConfig.new {
+      inherit (call) config;
     };
     args = call: call.args;
     staticContext = call: Context.new { inherit call; };
@@ -127,6 +54,38 @@ in {
       flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs nativeOutputs;
     };
     filteredOutputs = call: builtins.trace "TODO:CallFlake.filteredOutputs" CallFlake.outputs call;
+
+    self = call: call.inputs.self or (throw "who am i?");
+    flakeInputs = call: call.inputs;
+    inputConfigs = call: let
+      # TODO: consider whether `self` gets special treatment here or not
+      inputConfigs = FlConfig.inputConfigs (CallFlake.flConfig call);
+    in set.map (name: _: InputConfig.Default name) call.inputs // inputConfigs;
+
+    filteredInputs = call: let
+      inputConfigs = CallFlake.inputConfigs call;
+    in set.filter (name: _: FlakeType.isInput (InputConfig.flType inputConfigs.${name})) call.inputs;
+
+    # canonicalizeInputName :: CallFlake -> Optional string
+    canonicalizeInputName = call: name: optional.match (set.lookup name call.inputs) {
+      just = _: optional.just name;
+      nothing = set.lookup name (CallFlake.inputAliases call);
+    };
+
+    # inputAliases :: CallFlake -> { string => InputName }
+    inputAliases = call: let
+      inputConfigs = CallFlake.inputConfigs call;
+      aliasPairs = name: inputConfig: list.map (alias: { _0 = alias; _1 = name; }) (InputConfig.aliases inputConfig);
+    in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs));
+
+    # allInputNames :: CallFlake -> [InputName]
+    allInputNames = call: CallFlake.orderedInputNames call ++ set.keys (CallFlake.inputAliases call);
+
+    # orderedInputNames :: CallFlake -> [InputName]
+    orderedInputNames = call:
+      list.singleton "self" ++ set.keys (set.without [ "self" ] (CallFlake.filteredInputs call));
+
+    describe = call: FlakeInput.describe (CallFlake.self call);
   };
 
   FlakeInput = {
@@ -173,11 +132,11 @@ in {
     # description :: FlakeInput -> Optional string
     description = set.lookup "description";
 
-    # flData :: FlakeInput -> Optional set
-    flData = set.lookup FlakeInput.FlOutput;
-
     # flConfig :: FlakeInput -> FlConfig
-    flConfig = flakeInput: FlConfig.new { inherit flakeInput; };
+    flConfig = flakeInput: FlConfig.withFlakeInput { inherit flakeInput; };
+
+    # flData :: FlakeInput -> FlData
+    flData = flakeInput: bool.toOptional (FlakeInput.isFl flakeInput) (FlData.withFlakeInput { inherit flakeInput; });
 
     isAvailable = fi: (builtins.tryEval (fi ? sourceInfo)).success;
 
@@ -185,34 +144,26 @@ in {
 
     # hasNative :: FlakeInput -> BuildConfig -> bool
     hasNative = fi: buildConfig: let
-      flConfig = FlakeInput.flConfig fi;
-      systems = FlakeInput.nativeSystems fi;
-      system = BuildConfig.localDouble buildConfig;
-    in optional.isJust (list.findIndex (sys: system == sys) systems);
+      # TODO: configurable comparison strictness?
+      systems = FlakeInput.nativeBuildConfigs fi;
+    in optional.isJust (list.findIndex (BuildConfig.approxEquals buildConfig) (set.values systems));
 
     # defaultImportPath :: FlakeInput -> Optional string
     defaultImportPath = fi: let
       defaultPath = "${FlakeInput.outPath fi}/default.nix";
     in bool.toOptional (builtins.pathExists defaultPath) defaultPath;
 
-    # flImport :: FlakeInput -> Optional import
-    flImport = set.lookupAt [ FlakeInput.FlOutput "import" ];
-
-    # nativeSystems :: FlakeInput -> [string]
-    nativeSystems = fi: let
+    # nativeBuildConfigs :: FlakeInput -> { string => BuildConfig }
+    nativeBuildConfigs = fi: let
       nativeAttrs' = set.mapToList (_: set.keys) (set.retain FlakeInput.NativeAttrs fi);
-      nativeAttrs = set.gen (list.concat nativeAttrs') function.id;
-    in if FlakeInput.isFl fi then FlConfig.systems (FlakeInput.flConfig fi)
-    else set.keys nativeAttrs;
-
-    # importMethod :: FlakeInput -> Optional ImportMethod
-    importMethod = fi: optional.match (FlakeInput.flImport fi) {
-      just = _: optional.just ImportMethod.FlImport;
-      nothing = optional.match (FlakeInput.defaultImportPath fi) {
-        inherit (optional) nothing;
-        just = _: optional.just ImportMethod.DefaultImport;
-      };
+      nativeAttrs = set.gen (list.concat nativeAttrs') BuildConfig;
+    in optional.match (FlakeInput.flData fi) {
+      just = FlData.systems;
+      nothing = nativeAttrs;
     };
+
+    # nativeSystemNames :: FlakeInput -> [string]
+    nativeSystemNames = fi: set.keys (FlakeInput.nativeBuildConfigs fi);
 
     staticOutputs = fi: set.without FlakeInput.NativeAttrs fi;
 
@@ -242,77 +193,27 @@ in {
     in name + desc;
   };
 
-  Input = {
-    TypeId = "fl:Input";
-    new = {
-      flakeInput
-    , inputConfig
-    }: {
-      type = Input.TypeId;
-      inherit flakeInput inputConfig;
-    };
-
-    __functor = Input: flakeInput: Input.new {
-      inherit flakeInput;
-      inputConfig = InputConfig.Default InputConfig.UnknownName;
-    };
-
-    flakeInput = input: input.flakeInput;
-    inputConfig = input: input.inputConfig;
-
-    # displayName :: Input -> string
-    displayName = input: let
-      inputName = InputConfig.inputName input.inputConfig;
-      configName = FlConfig.name (FlakeInput.flConfig input.flakeInput);
-    in if InputConfig.eagerEval input.inputConfig || inputName == InputConfig.UnknownName
-      then optional.match configName {
-        just = function.id;
-        nothing = inputName;
-      } else inputName;
-
-    supportsImportMethod = input: { importMethod, buildConfig ? null }: let
-      flType = InputConfig.flType input.inputConfig;
-      eager = InputConfig.eagerEval input.inputConfig;
-      isFlake = FlakeType.isFlake flType;
-    in {
-      ${ImportMethod.Self} = InputConfig.isSelf input.inputConfig;
-      ${ImportMethod.Pure} = isFlake;
-      ${ImportMethod.Native} = isFlake && (buildConfig == null || !eager || FlakeInput.hasNative input.flakeInput buildConfig);
-      ${ImportMethod.FlImport} = flType == FlakeType.Fl || optional.isJust (FlakeInput.flImport input.flakeInput);
-      #${ImportMethod.DefaultImport} = optional.isJust (FlakeInput.defaultImportPath input.flakeInput);
-      ${ImportMethod.DefaultImport} = optional.isJust (InputConfig.defaultImport input.inputConfig);
-    }.${importMethod} or false;
-
-    /* TODO newInput = flake: context: OldInput.new {
-      inherit flake context;
-    };*/
-
-    describe = input: let
-      inputName = InputConfig.inputName input.inputConfig;
-      name = Input.displayName input;
-    in if inputName != name then "${inputName}/${name}" else inputName;
-  };
-
   InputOutputs = {
     TypeId = "fl:InputOutputs";
     new = {
-      input
+      flakeInput
+    , inputConfig
     , context
     , importMethod ? null
     }: {
       type = InputOutputs.TypeId;
-      inherit input context;
+      inherit flakeInput inputConfig context;
       importMethod = nullable.match importMethod {
         just = function.id;
         nothing = ImportMethod.select {
-          inherit input;
+          inherit inputConfig flakeInput;
           inherit (context) buildConfig;
         };
       };
     };
 
     outputs = io: InputOutputs.Importer.${io.importMethod} {
-      inherit (io) input context;
+      inherit (io) flakeInput inputConfig context;
     };
 
     # TODO: merge a list of InputOutputs
@@ -331,49 +232,42 @@ in {
     namespacedPkgs = io: InputOutputs.wrapNamespace io QueryScope.Packages (InputOutputs.pkgs io);
     namespacedLib = io: InputOutputs.wrapNamespace io QueryScope.Lib (InputOutputs.lib io);
     wrapNamespace = io: scope: target: let
-      inputConfig = Input.inputConfig io.input;
       namespace = {
-        ${QueryScope.Packages} = optional.match (InputConfig.pkgsNamespace inputConfig) {
+        ${QueryScope.Packages} = optional.match (InputConfig.pkgsNamespace io.inputConfig) {
           just = function.id;
-          nothing = FlConfig.pkgsNamespace (FlakeInput.flConfig io.input.flakeInput);
+          nothing = FlConfig.pkgsNamespace (FlakeInput.flConfig io.flakeInput);
         };
-        ${QueryScope.Lib} = optional.match (InputConfig.libNamespace inputConfig) {
+        ${QueryScope.Lib} = optional.match (InputConfig.libNamespace io.inputConfig) {
           just = function.id;
-          nothing = FlConfig.libNamespace (FlakeInput.flConfig io.input.flakeInput);
+          nothing = FlConfig.libNamespace (FlakeInput.flConfig io.flakeInput);
         };
       }.${scope} or (throw "Unknown namespace scope ${toString scope}");
     in set.assignAt namespace target { };
 
     describe = io: let
-      input = Input.describe io.input;
       buildConfig = nullable.match io.buildConfig or null {
         just = bc: ".${BuildConfig.describe bc}";
         nothing = "";
       };
-    in "${input}.outputs/${io.importMethod}${buildConfig}";
+    in "${InputConfig.inputName io.inputConfig}.outputs/${io.importMethod}${buildConfig}";
 
     Importer = {
       # TODO: make these attrs lazy, also expose `extraOutputs` for unknown attrs
-      ${ImportMethod.DefaultImport} = { input, context }: let
-        outputs = Input.flakeInput input;
-      in throw "TODO:Importer.DefaultImport of ${Input.describe input}";
+      ${ImportMethod.DefaultImport} = { flakeInput, inputConfig, context }: let
+      in throw "TODO:Importer.DefaultImport of ${InputConfig.inputName inputConfig}";
 
-      ${ImportMethod.FlImport} = { input, context }: let
-        outputs = Input.flakeInput input;
-      in throw "TODO:Importer.FlImport of ${Input.describe input}";
+      ${ImportMethod.FlImport} = { flakeInput, inputConfig, context }: let
+      in throw "TODO:Importer.FlImport of ${InputConfig.inputName inputConfig}";
 
-      ${ImportMethod.Native} = { input, context }: let
+      ${ImportMethod.Native} = { flakeInput, inputConfig, context }: let
         system = BuildConfig.localDouble context.buildConfig;
-        outputs = Input.flakeInput input;
-      in outputs // FlakeInput.nativeOutputs outputs { inherit (context) buildConfig; };
+      in flakeInput // FlakeInput.nativeOutputs flakeInput { inherit (context) buildConfig; };
 
-      ${ImportMethod.Pure} = { input, context }: let
-        outputs = Input.flakeInput input;
-      in FlakeInput.staticOutputs outputs;
+      ${ImportMethod.Pure} = { flakeInput, inputConfig, context }: let
+      in FlakeInput.staticOutputs flakeInput;
 
-      ${ImportMethod.Self} = { input, context }: let
-        outputs = Input.flakeInput input;
-      in outputs // Context.outputs context;
+      ${ImportMethod.Self} = { flakeInput, inputConfig, context }: let
+      in flakeInput // Context.outputs context;
     };
 
     # TODO: recursive merges
@@ -389,8 +283,22 @@ in {
 
     Default = ImportMethod.Native;
 
+    supportsInput = importMethod: { flakeInput, inputConfig, buildConfig ? null }: let
+      flType = InputConfig.flType inputConfig;
+      eager = InputConfig.eagerEval inputConfig;
+      isFlake = FlakeType.isFlake flType;
+    in {
+      ${ImportMethod.Self} = InputConfig.isSelf inputConfig;
+      ${ImportMethod.Pure} = isFlake;
+      ${ImportMethod.Native} = isFlake && (buildConfig == null || !eager || FlakeInput.hasNative flakeInput buildConfig);
+      ${ImportMethod.FlImport} = flType == FlakeType.Fl || optional.isJust (FlakeInput.flData flakeInput);
+      #${ImportMethod.DefaultImport} = optional.isJust (FlakeInput.defaultImportPath flakeInput);
+      ${ImportMethod.DefaultImport} = optional.isJust (InputConfig.defaultImport inputConfig);
+    }.${importMethod} or false;
+
     select = {
-      input ? null
+      flakeInput ? null
+    , inputConfig ? null
     , buildConfig ? null
     }: let
       preference = list.singleton ImportMethod.Self ++ (if buildConfig == null then [
@@ -400,15 +308,15 @@ in {
       ] else [
         ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
       ]);
-      first = list.findIndex (importMethod: nullable.match input {
-        just = input: Input.supportsImportMethod input {
-          inherit importMethod buildConfig;
+      first = list.findIndex (importMethod: nullable.match inputConfig {
+        just = inputConfig: ImportMethod.supportsInput importMethod {
+          inherit inputConfig flakeInput buildConfig;
         };
         nothing = true;
       }) preference;
-      input'desc = nullable.match input {
-        just = Input.describe;
-        nothing = "";
+      input'desc = nullable.match inputConfig {
+        just = InputConfig.inputName;
+        nothing = InputConfig.UnknownName;
       };
       bc'desc = nullable.match buildConfig {
         just = bc: ".${BuildConfig.describe bc}";
@@ -427,30 +335,54 @@ in {
     Default = QueryScope.Packages;
   };
 
+  FlData = {
+    TypeId = "fl:FlData";
+    new = {
+      data
+    }: {
+      type = FlData.TypeId;
+      inherit data;
+    };
+
+    withFlakeInput = {
+      flakeInput
+    }: FlConfig.new {
+      config = flakeInput.${FlakeInput.FlOutput} or { };
+    };
+
+    # data :: FlData -> set
+    data = fd: fd.data;
+
+    # config :: FlData -> FlConfig
+    config = fd: FlConfig.new {
+      config = (FlData.data fd).config or { };
+    };
+
+    # systems :: FlData -> { string => BuildConfig }
+    systems = fd: set.map (_: BuildConfig) (FlData.data fd).systems;
+  };
+
   FlConfig = {
     TypeId = "fl:FlConfig";
     new = {
-      flakeInput
+      config
     }: {
       type = FlConfig.TypeId;
-      inherit flakeInput;
+      inherit config;
     };
 
-    __functor = FlConfig: flakeInput: FlConfig.new {
-      inherit flakeInput;
+    withFlakeInput = {
+      flakeInput
+    }: FlConfig.new {
+      config = flakeInput.${FlakeInput.FlOutput}.config or { };
     };
 
-    # flakeInput :: FlConfig -> FlakeInput
-    flakeInput = fc: fc.flakeInput;
-
-    # data :: FlConfig -> set
-    data = fc: fc.flakeInput.${FlakeInput.FlOutput};
-
-    # systems :: FlConfig -> [string]
-    systems = fc: (FlConfig.data fc).systems;
+    __functor = FlConfig: config: FlConfig.new {
+      inherit config;
+    };
 
     # configData :: FlConfig -> set
-    configData = fc: fc.flakeInput.${FlakeInput.FlOutput}.config or { };
+    configData = fc: fc.config;
 
     # name :: FlConfig -> Optional string
     name = fc: set.lookup "name" (FlConfig.configData fc);
@@ -458,19 +390,24 @@ in {
     # flType :: FlConfig -> Optional FlakeType
     flType = fc: set.lookup "type" (FlConfig.configData fc);
 
+    # inputConfigs :: FlConfig -> { string => InputConfig }
+    inputConfigs = fc: set.map (name: config: InputConfig.new {
+      inherit name config;
+    }) (FlConfig.configData fc).inputs or { };
+
     # libNamespace :: FlConfig -> [string]
     libNamespace = fc: let
       default = optional.match (FlConfig.name fc) {
         just = list.singleton;
         nothing = [ ];
       };
-    in set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc.flakeInput);
+    in set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc);
 
     # pkgsNamespace :: FlConfig -> [string]
-    pkgsNamespace = fc: set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc.flakeInput);
+    pkgsNamespace = fc: set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc);
 
     # defaultImport :: FlConfig -> Optional import
-    defaultImport = fc: set.lookupAt [ "import" ImportMethod.DefaultImport ] (FlConfig.configData fc.flakeInput);
+    defaultImport = fc: set.lookupAt [ "import" ImportMethod.DefaultImport ] (FlConfig.configData fc);
 
     callArgs = fc: (FlConfig.configData fc).call or { };
     callArgsFor = fc: attr: (FlConfig.callArgs fc).${attr} or { };
@@ -602,6 +539,8 @@ in {
       nothing = bc.localSystem;
     };
     hostDouble = bc: System.double (BuildConfig.hostSystem bc);
+
+    approxEquals = bc: rhs: BuildConfig.localDouble bc == BuildConfig.localDouble rhs && BuildConfig.crossDouble bc == BuildConfig.crossDouble rhs;
 
     attrName = bc: let
       local = System.attrName bc.localSystem;
