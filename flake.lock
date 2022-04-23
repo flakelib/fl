@@ -2,12 +2,13 @@
   "nodes": {
     "fl-config": {
       "locked": {
+        "lastModified": 1,
         "narHash": "sha256-PvB9ha0r4w6p412MBPP71kS/ZTBnOjxL0brlmyucPBA=",
-        "path": "/nix/store/xi0h2qpxnz8pa9c1n6r1pylrbcb8p3ar-source/config",
+        "path": "/nix/store/9ssrfc3ljbphhrpbrl9gj9wip60gv2ir-source/config",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/xi0h2qpxnz8pa9c1n6r1pylrbcb8p3ar-source/config",
+        "path": "/nix/store/9ssrfc3ljbphhrpbrl9gj9wip60gv2ir-source/config",
         "type": "path"
       }
     },
@@ -19,11 +20,11 @@
     },
     "std": {
       "locked": {
-        "lastModified": 1650329036,
-        "narHash": "sha256-z5W9NPTAlURHc5fMQVtQfXiPanHzH6GXHQf7zoewKyg=",
+        "lastModified": 1650752973,
+        "narHash": "sha256-+sFAHWYspyl4NPBYboHTZ7I0gfdoPdwpnEBJ+AQAILY=",
         "owner": "flakelib",
         "repo": "std",
-        "rev": "f85b486027aaa86cd477149e20126b59dec1d935",
+        "rev": "a92e394f4e714d6797303be53a55989e6861c3f2",
         "type": "github"
       },
       "original": {
