@@ -127,7 +127,7 @@ in {
       inherit fn inputNames;
     };
 
-    configData = callable: callable.fl'config or { };
+    configData = callable: callable.fn.fl'config or { };
     configDataArgs = callable: (Callable.configData callable).args or { };
 
     argsConfig = callable: set.map (name: config: ArgDesc.withConfig {
@@ -138,11 +138,15 @@ in {
       inherit (callable) inputNames;
     }) (function.args callable.fn);
 
+    # argsFallbacks :: Callable -> { string => a }
     argsFallbacks = callable: let
       args = Callable.args callable;
       fallbacks = set.mapToList (name: arg: optional.match (ArgDesc.fallbackValue arg) {
         nothing = list.nil;
-        just = fallback: list.singleton { _0 = name; _1 = fallback; };
+        just = fallback: optional.match fallback {
+          nothing = list.nil;
+          just = fallback: list.singleton { _0 = name; _1 = fallback; };
+        };
       }) args;
     in set.fromList (list.concat fallbacks);
 
