@@ -240,7 +240,7 @@ in {
 
     callPackage = scoped: target: let
       fn = if types.function.check target then target else import target;
-    in function.overridable (ScopedContext.callFn scoped target);
+    in function.overridable (ScopedContext.callFn scoped fn);
 
     callPackages = scoped: target: overrides: let
       target'fn = if types.function.check target || types.attrs.check target then target else import target;
