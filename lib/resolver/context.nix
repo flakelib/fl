@@ -159,6 +159,11 @@ in {
       ${QueryScope.Lib} = global.lib;
     }.${scoped.scope} or (throw "Unsupported QueryScope in ${ScopedContext.describe scoped}");
 
+    self = scoped: {
+      ${QueryScope.Packages} = InputOutputs.pkgs scoped.context.inputOutputs.self;
+      ${QueryScope.Lib} = InputOutputs.lib scoped.context.inputOutputs.self;
+    }.${scoped.scope} or (throw "Unsupported QueryScope in ${ScopedContext.describe scoped}");
+
     # queryAll :: ScopedContext -> { arg: ArgDesc, scope: QueryScope } -> Optional x
     queryAll = scoped: { arg }: let
       scoped' = ScopedContext.byOffset scoped (ArgDesc.offset arg);
@@ -166,6 +171,7 @@ in {
       queries = list.map lookup [
         (ScopedContext.global scoped')
         (ScopedContext.specific scoped')
+        (ScopedContext.self scoped')
       ];
     in optional.match (list.findIndex optional.isJust queries) {
       nothing = optional.nothing;
