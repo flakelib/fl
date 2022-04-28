@@ -437,10 +437,13 @@ in {
         just = list.singleton;
         nothing = [ ];
       };
-    in set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc);
+      ns = set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc);
+    in if (types.listOf types.string).check ns then ns else [ ns ];
 
     # pkgsNamespace :: FlConfig -> [string]
-    pkgsNamespace = fc: set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc);
+    pkgsNamespace = fc: let
+      ns = set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc);
+    in if (types.listOf types.string).check ns then ns else [ ns ];
 
     # defaultImport :: FlConfig -> Optional import
     defaultImport = fc: set.lookupAt [ "import" ImportMethod.DefaultImport ] (FlConfig.configData fc);
