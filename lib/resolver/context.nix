@@ -71,8 +71,8 @@ in {
       outputs = InputOutputs.outputs context.inputOutputs.self;
       pkgs = InputOutputs.MergeScopes (list.map (io: InputOutputs.namespacedPkgs io) (Context.orderedInputOutputs context));
       lib = InputOutputs.MergeScopes (list.map (io: InputOutputs.namespacedLib io) (Context.orderedInputOutputs context));
-      buildPackages = (ScopedContext.globalScope (ScopedContext.scopeFor (Context.byOffset Offset.Build) {})).pkgs;
-      targetPackages = (ScopedContext.globalScope (ScopedContext.scopeFor (Context.byOffset Offset.Target) {})).pkgs;
+      buildPackages = (ScopedContext.global (Context.scopeFor (Context.byOffset context Offset.Build) {})).pkgs;
+      targetPackages = (ScopedContext.global (Context.scopeFor (Context.byOffset context Offset.Target) {})).pkgs;
     };
 
     outputs = context: let
