@@ -11,7 +11,7 @@ in {
   };
   optional-arg = { checkAssert, nonexistent ? 1 }: checkAssert {
     name = "optional-arg";
-    cond = builtins.trace nonexistent nonexistent == 1;
+    cond = nonexistent == 1;
   };
   fallback-arg = lib.function.toFunctor ({ checkAssert, nonexistent }: checkAssert {
     name = "fallback-arg";
