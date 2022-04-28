@@ -25,4 +25,13 @@ in {
     name = "broken";
     meta.platforms = [ ];
   };
+  recursive-merge = { checkAssert, recursive-merge-test }: checkAssert {
+    name = "recursive-merge-check";
+    cond = recursive-merge-test == { a = 0; b = 2; c = 3; };
+  };
+  merge-override = { merge-override-test }: checkCommand {
+    name = "merge-override-check";
+    command = "[[ -e $testData ]]";
+    testData = merge-override-test;
+  };
 } { }

@@ -10,4 +10,5 @@
     name = "broken";
     meta.platforms = [ ];
   };
+  merge-override-test = { runCommand }: runCommand "override-test" { } "touch $out";
 }

@@ -289,8 +289,21 @@ in {
       ${ImportMethod.Self} = { flakeInput, inputConfig, context }: flakeInput // Context.outputs context;
     };
 
-    # TODO: recursive merges
-    MergeScopes = scopes: list.foldl' set.semigroup.append {} (list.reverse scopes);
+    MergeScopes = scopes: let
+      unmergeable = v: types.drv.check v || function.isFunctor v; # TODO: who says you can't merge a plain attrset with a derivation or function/functor?
+      append = paths: values: let
+        mergeUntil = list.findIndex (v: !types.attrs.check v || unmergeable v) values;
+      in if list.all types.attrs.check values && !list.any unmergeable values then merge paths values
+      else optional.match mergeUntil {
+        just = i: let
+          split = list.splitAt i values;
+        in if i > 0
+          then merge paths split._0 # TODO: warn of shadowing/override?
+          else list.head values;
+        nothing = list.head values;
+      };
+      merge = paths: set.mapZip (name: append (paths ++ list.singleton name));
+    in merge [] scopes;
   };
 
   ImportMethod = {

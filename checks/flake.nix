@@ -37,5 +37,18 @@
     };
     checks = import ./checks.nix;
     packages = import ./packages.nix;
+    legacyPackages = { runCommand }: {
+      recursive-merge-test = {
+        a = 1;
+        b = 2;
+      };
+      merge-override-test = runCommand "override-test-broken" { } "false";
+    };
+    builders = { }: {
+      recursive-merge-test = {
+        a = 0;
+        c = 3;
+      };
+    };
   };
 }
