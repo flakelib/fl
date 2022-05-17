@@ -1,12 +1,13 @@
 { self, std }: let
   inherit (std.lib) Ty List Set Fn Bool Null Opt;
   inherit (self.lib)
-    BuildConfig System
+    BuildConfig
     CallFlake Context
     FlakeInput FlConfig FlData FlakeType
     InputConfig FlakeImporters
     InputOutputs ImportMethod QueryScope
     Offset;
+  System = std.lib.System // self.lib.System;
 in {
   CallFlake = {
     TypeId = "fl:CallFlake";
@@ -633,38 +634,5 @@ in {
       local = System.describe bc.localSystem;
       cross = System.describe bc.crossSystem;
     in if BuildConfig.isNative bc then local else "${cross}:${local}";
-  };
-
-  System = {
-    TypeId = "fl:System";
-    new = { system, ... }@sys: {
-      type = System.TypeId;
-      system = sys;
-    };
-
-    withDouble = system: System.new {
-      inherit system;
-    };
-
-    __functor = System: system:
-      if System.check system then system
-      else if Ty.string.check system then System.withDouble system
-      else System.new system;
-
-    double = system: system.system.system;
-    isSimple = system: true; # TODO: actually decide this somehow!
-
-    attrName = system: System.double system;
-
-    serialize = system: if System.isSimple system
-      then System.double system
-      else system.system;
-
-    #elaborate = lib.systems.elaborate;
-
-    check = system: system.type or null == System.TypeId;
-    describe = system: if System.isSimple system
-      then System.double system
-      else throw "TODO";
   };
 }

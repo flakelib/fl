@@ -19,7 +19,7 @@
   };
   outputs = { flakelib, std, nixpkgs, ... }@inputs: flakelib {
     inherit inputs;
-    systems = flakelib.lib.supportedSystems.tier2 ++ [
+    systems = flakelib.lib.System.Supported.tier2 ++ [
       {
         localSystem = "x86_64-linux";
         crossSystem = nixpkgs.lib.systems.elaborate nixpkgs.lib.systems.examples.avr;

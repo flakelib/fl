@@ -3,8 +3,7 @@
   inherit (self.lib)
     BuildConfig System
     Inputs FlakeInput
-    CallFlake Context
-    supportedSystems;
+    CallFlake Context;
 in {
   inputs
 , packages ? null, defaultPackage ? null, legacyPackages ? null
@@ -17,7 +16,7 @@ in {
 , nixosModules ? null, nixosModule ? null
 , nixosConfigurations ? null
 , defaultTemplate ? null
-, systems ? supportedSystems.tier2
+, systems ? System.Supported.tier2
 , config ? { }
 }@args: let
   call = CallFlake.new {
