@@ -1,5 +1,5 @@
 { self, std }: let
-  inherit (std.lib) types set list function bool nullable optional;
+  inherit (std.lib) Ty List Set Fn Bool Null Opt;
   inherit (self.lib)
     BuildConfig System
     CallFlake Context
@@ -22,7 +22,7 @@ in {
 
     flOutput = call: {
       inherit (call) config args;
-      systems = set.map (_: BuildConfig.serialize) call.buildConfigs;
+      systems = Set.map (_: BuildConfig.serialize) call.buildConfigs;
       import = { buildConfig }: (CallFlake.self call) // (Context.outputs (Context.byBuildConfig (CallFlake.staticContext call) buildConfig));
       impure = (CallFlake.flOutput call).import {
         context = Context.new {
@@ -38,35 +38,35 @@ in {
     };
     args = call: call.args;
     staticContext = call: Context.new { inherit call; };
-    nativeContexts = call: set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) call.buildConfigs;
-    contextOutputs = call: set.map (_: Context.outputs) (CallFlake.nativeContexts call);
-    staticOutputs = call: set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
+    nativeContexts = call: Set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) call.buildConfigs;
+    contextOutputs = call: Set.map (_: Context.outputs) (CallFlake.nativeContexts call);
+    staticOutputs = call: Set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
     filteredNativeOutputs = call: let
       contextOutputs = CallFlake.contextOutputs call;
-      packageAttrs = set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
+      packageAttrs = Set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
       filterOutput = name: output: let
         available = builtins.tryEval (output.meta.available or true);
       in available.value || !available.success;
       filterOutputs = name: outputs: rec {
         # TODO: how to handle apps and devShells?
-        checks = set.filter filterOutput outputs;
-        packages = checks; # TODO: consider set.map'ing anything broken into an unbuildable derivation instead
+        checks = Set.filter filterOutput outputs;
+        packages = checks; # TODO: consider Set.map'ing anything broken into an unbuildable derivation instead
         legacyPackages = builtins.trace "TODO:CallFlake.filteredNativeOutputs/filterOutputs/legacyPackages" packages;
       }.${name} or outputs;
-    in set.map (name: _: set.map (system: outputs: filterOutputs name outputs.${name}) contextOutputs) packageAttrs;
+    in Set.map (name: _: Set.map (system: outputs: filterOutputs name outputs.${name}) contextOutputs) packageAttrs;
     filteredOutputs = call: let
       filteredNativeOutputs = CallFlake.filteredNativeOutputs call;
     in CallFlake.staticOutputs call // filteredNativeOutputs // {
-      flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs filteredNativeOutputs;
+      flakes = CallFlake.flOutput call // Set.retain FlakeInput.FlNativePackageSetAttrs filteredNativeOutputs;
     };
     nativeOutputs = call: let
       contextOutputs = CallFlake.contextOutputs call;
-      packageAttrs = set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
-    in set.map (name: _: set.map (system: outputs: outputs.${name}) contextOutputs) packageAttrs;
+      packageAttrs = Set.retain (FlakeInput.NativeAttrs ++ FlakeInput.FlNativePackageSetAttrs) call.args;
+    in Set.map (name: _: Set.map (system: outputs: outputs.${name}) contextOutputs) packageAttrs;
     outputs = call: let
       nativeOutputs = CallFlake.nativeOutputs call;
     in CallFlake.staticOutputs call // nativeOutputs // {
-      flakes = CallFlake.flOutput call // set.retain FlakeInput.FlNativePackageSetAttrs nativeOutputs;
+      flakes = CallFlake.flOutput call // Set.retain FlakeInput.FlNativePackageSetAttrs nativeOutputs;
     };
 
     self = call: call.inputs.self or (throw "who am i?");
@@ -74,34 +74,34 @@ in {
     inputConfigs = call: let
       # TODO: consider whether `self` gets special treatment here or not
       inputConfigs = FlConfig.inputConfigs (CallFlake.flConfig call);
-    in set.map (name: _: InputConfig.Default name) call.inputs // inputConfigs;
+    in Set.map (name: _: InputConfig.Default name) call.inputs // inputConfigs;
 
     filteredInputs = call: let
       inputConfigs = CallFlake.inputConfigs call;
-    in set.filter (name: _: FlakeType.isInput (InputConfig.flType inputConfigs.${name})) call.inputs;
+    in Set.filter (name: _: FlakeType.isInput (InputConfig.flType inputConfigs.${name})) call.inputs;
 
     # canonicalizeInputName :: CallFlake -> Optional string
-    canonicalizeInputName = call: name: optional.match (set.lookup name call.inputs) {
-      just = _: optional.just name;
-      nothing = set.lookup name (CallFlake.inputAliases call);
+    canonicalizeInputName = call: name: Opt.match (Set.lookup name call.inputs) {
+      just = _: Opt.just name;
+      nothing = Set.lookup name (CallFlake.inputAliases call);
     };
 
     # inputAliases :: CallFlake -> { string => InputName }
     inputAliases = call: let
       inputConfigs = CallFlake.inputConfigs call;
-      aliasPairs = name: inputConfig: list.map (alias: { _0 = alias; _1 = name; }) (InputConfig.aliases inputConfig);
-      selfAlias = optional.match (FlConfig.name (CallFlake.flConfig call)) {
-        just = name: list.singleton { _0 = name; _1 = "self"; };
-        nothing = list.nil;
+      aliasPairs = name: inputConfig: List.map (alias: { _0 = alias; _1 = name; }) (InputConfig.aliases inputConfig);
+      selfAlias = Opt.match (FlConfig.name (CallFlake.flConfig call)) {
+        just = name: List.One { _0 = name; _1 = "self"; };
+        nothing = List.Nil;
       };
-    in set.fromList (list.concat (set.mapToList aliasPairs inputConfigs) ++ selfAlias);
+    in Set.fromList (List.concat (Set.mapToList aliasPairs inputConfigs) ++ selfAlias);
 
     # allInputNames :: CallFlake -> [InputName]
-    allInputNames = call: CallFlake.orderedInputNames call ++ set.keys (CallFlake.inputAliases call);
+    allInputNames = call: CallFlake.orderedInputNames call ++ Set.keys (CallFlake.inputAliases call);
 
     # orderedInputNames :: CallFlake -> [InputName]
     orderedInputNames = call:
-      list.singleton "self" ++ set.keys (set.without [ "self" ] (CallFlake.filteredInputs call));
+      List.One "self" ++ Set.keys (Set.without [ "self" ] (CallFlake.filteredInputs call));
 
     describe = call: FlakeInput.describe (CallFlake.self call);
   };
@@ -149,13 +149,13 @@ in {
     outPath = fi: fi.outPath;
 
     # description :: FlakeInput -> Optional string
-    description = set.lookup "description";
+    description = Set.lookup "description";
 
     # flConfig :: FlakeInput -> FlConfig
     flConfig = flakeInput: FlConfig.withFlakeInput { inherit flakeInput; };
 
     # flData :: FlakeInput -> Optional FlData
-    flData = flakeInput: bool.toOptional (FlakeInput.isFl flakeInput) (FlData.withFlakeInput { inherit flakeInput; });
+    flData = flakeInput: Bool.toOptional (FlakeInput.isFl flakeInput) (FlData.withFlakeInput { inherit flakeInput; });
 
     isAvailable = fi: (builtins.tryEval (fi ? sourceInfo)).success;
 
@@ -165,47 +165,47 @@ in {
     hasNative = fi: buildConfig: let
       # TODO: configurable comparison strictness?
       systems = FlakeInput.nativeBuildConfigs fi;
-    in optional.isJust (list.findIndex (BuildConfig.approxEquals buildConfig) (set.values systems));
+    in Opt.isJust (List.findIndex (BuildConfig.approxEquals buildConfig) (Set.values systems));
 
     # defaultImportPath :: FlakeInput -> Optional string
     defaultImportPath = fi: let
       defaultPath = "${FlakeInput.outPath fi}/default.nix";
-    in bool.toOptional (builtins.pathExists defaultPath) defaultPath;
+    in Bool.toOptional (builtins.pathExists defaultPath) defaultPath;
 
     # nativeBuildConfigs :: FlakeInput -> { string => BuildConfig }
     nativeBuildConfigs = fi: let
-      nativeAttrs' = set.mapToList (_: set.keys) (set.retain FlakeInput.NativeAttrs fi);
-      nativeAttrs = set.gen (list.concat nativeAttrs') BuildConfig;
-    in optional.match (FlakeInput.flData fi) {
+      nativeAttrs' = Set.mapToList (_: Set.keys) (Set.retain FlakeInput.NativeAttrs fi);
+      nativeAttrs = Set.gen (List.concat nativeAttrs') BuildConfig;
+    in Opt.match (FlakeInput.flData fi) {
       just = FlData.systems;
       nothing = nativeAttrs;
     };
 
     # nativeSystemNames :: FlakeInput -> [string]
-    nativeSystemNames = fi: set.keys (FlakeInput.nativeBuildConfigs fi);
+    nativeSystemNames = fi: Set.keys (FlakeInput.nativeBuildConfigs fi);
 
-    staticOutputs = fi: set.without FlakeInput.NativeAttrs fi;
+    staticOutputs = fi: Set.without FlakeInput.NativeAttrs fi;
 
     nativeOutputs = fi: { buildConfig }: let
-      nativeBuilders = set.retain FlakeInput.FlNativeAttrs fi.flakes or { };
-      nativeAttrs = set.retain FlakeInput.NativeAttrs fi // nativeBuilders;
+      nativeBuilders = Set.retain FlakeInput.FlNativeAttrs fi.flakes or { };
+      nativeAttrs = Set.retain FlakeInput.NativeAttrs fi // nativeBuilders;
       error = name: throw "flake input ${FlakeInput.describe fi} is missing output ${name} for ${BuildConfig.describe buildConfig}";
       mapAttr = name: attr: attr.${BuildConfig.attrName buildConfig} or (error name);
-    in set.map mapAttr nativeAttrs;
+    in Set.map mapAttr nativeAttrs;
 
     outputs = fi: { buildConfig ? null }: let
-      nativeOutputs = nullable.match buildConfig {
+      nativeOutputs = Null.match buildConfig {
         just = buildConfig: FlakeInput.nativeOutputs { inherit buildConfig; };
         nothing = { };
       };
     in fi // nativeOutputs;
 
     describe = fi: let
-      name = optional.match (FlConfig.name (FlakeInput.flConfig fi)) {
-        just = function.id;
+      name = Opt.match (FlConfig.name (FlakeInput.flConfig fi)) {
+        just = Fn.id;
         nothing = "<<FlakeInput>>";
       };
-      desc = optional.match (FlakeInput.description fi) {
+      desc = Opt.match (FlakeInput.description fi) {
         just = desc: "(${desc})";
         nothing = "";
       };
@@ -222,8 +222,8 @@ in {
     }: {
       type = InputOutputs.TypeId;
       inherit flakeInput inputConfig context;
-      importMethod = nullable.match importMethod {
-        just = function.id;
+      importMethod = Null.match importMethod {
+        just = Fn.id;
         nothing = ImportMethod.select {
           inherit inputConfig flakeInput;
           inherit (context) buildConfig;
@@ -252,19 +252,19 @@ in {
     namespacedLib = io: InputOutputs.wrapNamespace io QueryScope.Lib (InputOutputs.lib io);
     wrapNamespace = io: scope: target: let
       namespace = {
-        ${QueryScope.Packages} = optional.match (InputConfig.pkgsNamespace io.inputConfig) {
-          just = function.id;
+        ${QueryScope.Packages} = Opt.match (InputConfig.pkgsNamespace io.inputConfig) {
+          just = Fn.id;
           nothing = FlConfig.pkgsNamespace (FlakeInput.flConfig io.flakeInput);
         };
-        ${QueryScope.Lib} = optional.match (InputConfig.libNamespace io.inputConfig) {
-          just = function.id;
+        ${QueryScope.Lib} = Opt.match (InputConfig.libNamespace io.inputConfig) {
+          just = Fn.id;
           nothing = FlConfig.libNamespace (FlakeInput.flConfig io.flakeInput);
         };
       }.${scope} or (throw "Unknown namespace scope ${toString scope}");
-    in set.assignAt namespace target { };
+    in Set.assignAt namespace target { };
 
     describe = io: let
-      buildConfig = nullable.match io.buildConfig or null {
+      buildConfig = Null.match io.buildConfig or null {
         just = bc: ".${BuildConfig.describe bc}";
         nothing = "";
       };
@@ -291,19 +291,19 @@ in {
     };
 
     MergeScopes = scopes: let
-      unmergeable = v: types.drv.check v || function.isFunctor v; # TODO: who says you can't merge a plain attrset with a derivation or function/functor?
+      unmergeable = v: Ty.drv.check v || Fn.isFunctor v; # TODO: who says you can't merge a plain attrset with a derivation or function/functor?
       append = paths: values: let
-        mergeUntil = list.findIndex (v: !types.attrs.check v || unmergeable v) values;
-      in if list.all types.attrs.check values && !list.any unmergeable values then merge paths values
-      else optional.match mergeUntil {
+        mergeUntil = List.findIndex (v: !Ty.attrs.check v || unmergeable v) values;
+      in if List.all Ty.attrs.check values && !List.any unmergeable values then merge paths values
+      else Opt.match mergeUntil {
         just = i: let
-          split = list.splitAt i values;
+          split = List.splitAt i values;
         in if i > 0
           then merge paths split._0 # TODO: warn of shadowing/override?
-          else list.head values;
-        nothing = list.head values;
+          else List.head values;
+        nothing = List.head values;
       };
-      merge = paths: set.mapZip (name: append (paths ++ list.singleton name));
+      merge = paths: Set.mapZip (name: append (paths ++ List.One name));
     in merge [] scopes;
   };
 
@@ -324,9 +324,9 @@ in {
       ${ImportMethod.Self} = InputConfig.isSelf inputConfig;
       ${ImportMethod.Pure} = isFlake;
       ${ImportMethod.Native} = isFlake && (buildConfig == null || FlakeInput.hasNative flakeInput buildConfig);
-      ${ImportMethod.FlImport} = flType == FlakeType.Fl || optional.isJust (FlakeInput.flData flakeInput);
-      #${ImportMethod.DefaultImport} = optional.isJust (FlakeInput.defaultImportPath flakeInput);
-      ${ImportMethod.DefaultImport} = optional.isJust (InputConfig.defaultImport inputConfig);
+      ${ImportMethod.FlImport} = flType == FlakeType.Fl || Opt.isJust (FlakeInput.flData flakeInput);
+      #${ImportMethod.DefaultImport} = Opt.isJust (FlakeInput.defaultImportPath flakeInput);
+      ${ImportMethod.DefaultImport} = Opt.isJust (InputConfig.defaultImport inputConfig);
     }.${importMethod} or false;
 
     select = {
@@ -334,28 +334,28 @@ in {
     , inputConfig ? null
     , buildConfig ? null
     }: let
-      preference = list.singleton ImportMethod.Self ++ (if buildConfig == null then [
+      preference = List.One ImportMethod.Self ++ (if buildConfig == null then [
         ImportMethod.Pure ImportMethod.DefaultImport
       ] else [
         ImportMethod.Native ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
       ]);
-      first = list.findIndex (importMethod: nullable.match inputConfig {
+      first = List.findIndex (importMethod: Null.match inputConfig {
         just = inputConfig: ImportMethod.supportsInput importMethod {
           inherit inputConfig flakeInput buildConfig;
         };
         nothing = true;
       }) preference;
-      input'desc = nullable.match inputConfig {
+      input'desc = Null.match inputConfig {
         just = InputConfig.inputName;
         nothing = InputConfig.UnknownName;
       };
-      bc'desc = nullable.match buildConfig {
+      bc'desc = Null.match buildConfig {
         just = bc: ".${BuildConfig.describe bc}";
         nothing = "";
       };
-    in optional.match first {
+    in Opt.match first {
       nothing = throw "Failed to select ImportMethod for ${input'desc}${bc'desc}";
-      just = list.index preference;
+      just = List.index preference;
     };
   };
 
@@ -364,7 +364,7 @@ in {
       inherit (flakeInput) lib;
       legacyPackages = import (flakeInput.outPath + "/default.nix") rec {
         localSystem = System.serialize (BuildConfig.localSystem buildConfig);
-        crossSystem = optional.match (BuildConfig.crossSystem buildConfig) {
+        crossSystem = Opt.match (BuildConfig.crossSystem buildConfig) {
           just = System.serialize;
           nothing = localSystem;
         };
@@ -409,7 +409,7 @@ in {
     };
 
     # systems :: FlData -> { string => BuildConfig }
-    systems = fd: set.map (_: BuildConfig) (FlData.data fd).systems;
+    systems = fd: Set.map (_: BuildConfig) (FlData.data fd).systems;
   };
 
   FlConfig = {
@@ -435,32 +435,32 @@ in {
     configData = fc: fc.config;
 
     # name :: FlConfig -> Optional string
-    name = fc: set.lookup "name" (FlConfig.configData fc);
+    name = fc: Set.lookup "name" (FlConfig.configData fc);
 
     # flType :: FlConfig -> Optional FlakeType
-    flType = fc: set.lookup "type" (FlConfig.configData fc);
+    flType = fc: Set.lookup "type" (FlConfig.configData fc);
 
     # inputConfigs :: FlConfig -> { string => InputConfig }
-    inputConfigs = fc: set.map (name: config: InputConfig.new {
+    inputConfigs = fc: Set.map (name: config: InputConfig.new {
       inherit name config;
     }) (FlConfig.configData fc).inputs or { };
 
     # libNamespace :: FlConfig -> [string]
     libNamespace = fc: let
-      default = optional.match (FlConfig.name fc) {
-        just = list.singleton;
+      default = Opt.match (FlConfig.name fc) {
+        just = List.One;
         nothing = [ ];
       };
-      ns = set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc);
-    in if (types.listOf types.string).check ns then ns else [ ns ];
+      ns = Set.atOr default [ "lib" "namespace" ] (FlConfig.configData fc);
+    in List.From ns;
 
     # pkgsNamespace :: FlConfig -> [string]
     pkgsNamespace = fc: let
-      ns = set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc);
-    in if (types.listOf types.string).check ns then ns else [ ns ];
+      ns = Set.atOr [ ] [ "packages" "namespace" ] (FlConfig.configData fc);
+    in List.From ns;
 
     # defaultImport :: FlConfig -> Optional import
-    defaultImport = fc: set.lookupAt [ "import" ImportMethod.DefaultImport ] (FlConfig.configData fc);
+    defaultImport = fc: Set.lookupAt [ "import" ImportMethod.DefaultImport ] (FlConfig.configData fc);
 
     callArgs = fc: (FlConfig.configData fc).call or { };
     callArgsFor = fc: attr: (FlConfig.callArgs fc).${attr} or { };
@@ -525,7 +525,7 @@ in {
     importArgs = inputConfig: inputConfig.config.args or { };
 
     # importMethod :: InputConfig -> Optional ImportMethod
-    importMethod = inputConfig: optional.fromNullable (inputConfig.config.importMethod or null);
+    importMethod = inputConfig: Opt.fromNullable (inputConfig.config.importMethod or null);
 
     # isNative :: InputConfig -> bool
     isNative = inputConfig: InputConfig.importArgs inputConfig == { };
@@ -534,13 +534,13 @@ in {
     aliases = inputConfig: inputConfig.config.aliases or [ ];
 
     # libNamespace :: InputConfig -> Optional [string]
-    libNamespace = inputConfig: set.lookupAt [ "lib" "namespace" ] inputConfig.config;
+    libNamespace = inputConfig: Set.lookupAt [ "lib" "namespace" ] inputConfig.config;
 
     # pkgsNamespace :: InputConfig -> Optional [string]
-    pkgsNamespace = inputConfig: set.lookupAt [ "packages" "namespace" ] inputConfig.config;
+    pkgsNamespace = inputConfig: Set.lookupAt [ "packages" "namespace" ] inputConfig.config;
 
     # defaultImport :: InputConfig -> Optional import
-    defaultImport = inputConfig: set.lookupAt [ "import" ImportMethod.DefaultImport ] inputConfig.config;
+    defaultImport = inputConfig: Set.lookupAt [ "import" ImportMethod.DefaultImport ] inputConfig.config;
 
     # eagerEval :: InputConfig -> bool
     eagerEval = inputConfig: InputConfig.isSelf inputConfig || {
@@ -561,7 +561,7 @@ in {
     }: {
       type = BuildConfig.TypeId;
       localSystem = System localSystem;
-      crossSystem = nullable.functor.map System crossSystem;
+      crossSystem = Null.map System crossSystem;
       inherit name;
     };
 
@@ -572,7 +572,7 @@ in {
 
     Native = localSystem: BuildConfig.new { inherit localSystem; };
 
-    Impure = nullable.match builtins.currentSystem or null {
+    Impure = Null.match builtins.currentSystem or null {
       just = localSystem: BuildConfig.new {
         inherit localSystem;
       };
@@ -580,18 +580,18 @@ in {
     };
 
     localSystem = bc: bc.localSystem;
-    crossSystem = bc: optional.fromNullable bc.crossSystem;
+    crossSystem = bc: Opt.fromNullable bc.crossSystem;
 
     isNative = bc: bc.crossSystem == null;
 
     localDouble = bc: System.double bc.localSystem;
-    crossDouble = bc: nullable.functor.map System.double bc.crossSystem;
+    crossDouble = bc: Null.map System.double bc.crossSystem;
 
-    nativeSystem = bc: bool.toOptional (BuildConfig.isNative bc) bc.localSystem;
+    nativeSystem = bc: Bool.toOptional (BuildConfig.isNative bc) bc.localSystem;
     buildSystem = BuildConfig.localSystem;
 
-    hostSystem = bc: nullable.match bc.crossSystem {
-      just = function.id;
+    hostSystem = bc: Null.match bc.crossSystem {
+      just = Fn.id;
       nothing = bc.localSystem;
     };
     hostDouble = bc: System.double (BuildConfig.hostSystem bc);
@@ -600,9 +600,9 @@ in {
 
     attrName = bc: let
       local = System.attrName bc.localSystem;
-    in nullable.match bc.name {
-      just = function.id;
-      nothing = nullable.match bc.crossSystem {
+    in Null.match bc.name {
+      just = Fn.id;
+      nothing = Null.match bc.crossSystem {
         just = crossSystem: "${System.attrName crossSystem}/${local}";
         nothing = local;
       };
@@ -620,7 +620,7 @@ in {
 
     serialize = bc: let
       localSystem = System.serialize bc.localSystem;
-    in nullable.match bc.crossSystem {
+    in Null.match bc.crossSystem {
       just = cross: {
         inherit localSystem;
         crossSystem = System.serialize bc.crossSystem;
@@ -648,7 +648,7 @@ in {
 
     __functor = System: system:
       if System.check system then system
-      else if types.string.check system then System.withDouble system
+      else if Ty.string.check system then System.withDouble system
       else System.new system;
 
     double = system: system.system.system;

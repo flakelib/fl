@@ -4,22 +4,22 @@ in {
     name = "recursive-callPackage";
     cond = lib ? flakelib.callFlake;
   }) { };
-} // lib.function.flip callPackageSet { } {
-  inputName-scope = { std'lib'types, self'pkgs'checkAssert }: checkAssert {
+} // lib.Fn.flip callPackageSet { } {
+  inputName-scope = { std'lib'Ty, self'pkgs'checkAssert }: checkAssert {
     name = "inputName-scope";
-    cond = std'lib'types.function.check self'pkgs'checkAssert;
+    cond = std'lib'Ty.function.check self'pkgs'checkAssert;
   };
   optional-arg = { checkAssert, nonexistent ? 1 }: checkAssert {
     name = "optional-arg";
     cond = nonexistent == 1;
   };
-  fallback-arg = lib.function.toFunctor ({ checkAssert, nonexistent }: checkAssert {
+  fallback-arg = lib.Fn.toFunctor ({ checkAssert, nonexistent }: checkAssert {
     name = "fallback-arg";
     cond = nonexistent == 1;
   }) // {
     fl'config.args.nonexistent.fallback = 1;
   };
-  fallback-optional-arg = lib.function.toFunctor ({ checkAssert, nonexistent ? 1 }: checkAssert {
+  fallback-optional-arg = lib.Fn.toFunctor ({ checkAssert, nonexistent ? 1 }: checkAssert {
     name = "fallback-optional-arg";
     cond = nonexistent == 2;
   }) // {

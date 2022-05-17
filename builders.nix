@@ -40,11 +40,11 @@
   });
 
   shellCommand = { lib, buildConfig }: let
-    inherit (lib) nullable string list set types flakelib;
+    inherit (lib) Null Str List Set Ty flakelib;
     inherit (flakelib) BuildConfig;
     bc' = buildConfig;
     fn = {
-      system ? nullable.match buildConfig {
+      system ? Null.match buildConfig {
         just = BuildConfig.localDouble;
         nothing = throw "system must be supplied";
       }
@@ -71,21 +71,21 @@
       localSystem = BuildConfig.localDouble buildConfig;
       crossSystem = BuildConfig.crossDouble buildConfig;
       hasPath = attrs ? PATH;
-      references = list.filter types.drv.check (set.values attrs)
-        ++ list.optionals (hasPath && builtins.isList PATH) (list.filter types.drv.check PATH);
+      references = List.filter Ty.drv.check (Set.values attrs)
+        ++ List.optionals (hasPath && builtins.isList PATH) (List.filter Ty.drv.check PATH);
       mapPathInput = input: "${input.bin or input}/bin"; # TODO: splicing and lib.drv
-      path = if builtins.isList attrs.PATH then string.concatSep ":" (list.map mapPathInput PATH) else PATH;
+      path = if builtins.isList attrs.PATH then Str.concatSep ":" (List.map mapPathInput PATH) else PATH;
       checkPlatform =
         if meta.platforms == null then true
-        else nullable.match buildConfig {
-          just = bc: list.elem (BuildConfig.hostDouble bc) meta.platforms;
+        else Null.match buildConfig {
+          just = bc: List.elem (BuildConfig.hostDouble bc) meta.platforms;
           nothing = true; # TODO: think about this
         };
       meta = passthru.meta or { } // {
         platforms = passthru.meta.platforms or null;
         broken = passthru.meta.broken or false;
         unsupported = passthru.meta.unsupported or (!checkPlatform);
-        available = !meta.broken && !meta.unsupported && list.all (input: input.meta.available or true) references;
+        available = !meta.broken && !meta.unsupported && List.all (input: input.meta.available or true) references;
       };
       drvArgs = removeAttrs attrs [ "command" "arg'crossAware" "arg'targetAware" "arg'asFile" "arg'toFile" "passthru" ] // {
         inherit name system args builder;

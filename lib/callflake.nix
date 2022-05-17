@@ -1,5 +1,5 @@
 { self, std }: let
-  inherit (std.lib) flip set list bool function types;
+  inherit (std.lib) Set List;
   inherit (self.lib)
     BuildConfig System
     Inputs FlakeInput
@@ -23,10 +23,10 @@ in {
   call = CallFlake.new {
     inherit inputs config;
     buildConfigs = if builtins.isList systems
-      then set.fromList (list.map (system: let
+      then Set.fromList (List.map (system: let
         bc = BuildConfig system;
       in { _0 = BuildConfig.attrName bc; _1 = bc; }) systems)
-      else set.map (_: BuildConfig) systems;
-    args = set.without [ "systems" "config" "inputs" ] args;
+      else Set.map (_: BuildConfig) systems;
+    args = Set.without [ "systems" "config" "inputs" ] args;
   };
 in CallFlake.filteredOutputs call

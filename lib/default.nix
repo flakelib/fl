@@ -21,7 +21,8 @@
   inherit (import ./resolver/resolver.nix inputs)
     Callable ArgDesc Offset;
 
-  util = import ./resolver/util.nix inputs;
+  inherit (import ./resolver/util.nix inputs)
+    Regex;
 
   callFlake = import ./callflake.nix inputs;
 }

@@ -1,6 +1,6 @@
 { self, std }: let
-  inherit (std.lib) string list set optional nullable function;
-  inherit (self.lib) Callable Injectable ArgDesc Offset util;
+  inherit (std.lib) Str List Set Opt Null Fn;
+  inherit (self.lib) Callable Injectable ArgDesc Offset Regex;
 in {
   ArgDesc = {
     TypeId = "fl:ArgDesc";
@@ -22,32 +22,32 @@ in {
     , opt ? false
     , inputNames ? [ ]
     }: let
-      inputRegex = string.concatMapSep "|" (i: "^${i}") inputNames;
-      offsetRegex = string.concatMapSep "|" (o: "${o}$") Offset.All;
-      parts = util.regex.splitExt "(${inputRegex})?'(${offsetRegex})?" name;
+      inputRegex = Str.concatMapSep "|" (i: "^${i}") inputNames;
+      offsetRegex = Str.concatMapSep "|" (o: "${o}$") Offset.All;
+      parts = Regex.splitExt "(${inputRegex})?'(${offsetRegex})?" name;
       mapCaptures = { captures, suffix }: {
-        inputName = list.index captures 0;
-        offset = list.index captures 1;
+        inputName = List.index captures 0;
+        offset = List.index captures 1;
       };
-      splits = list.map mapCaptures parts.splits;
+      splits = List.map mapCaptures parts.splits;
       fastpath = {
         inputName = null;
         offset = null;
         components = [ name ];
       };
-      inputName = (list.head splits).inputName;
-      offset = (list.last splits).offset;
+      inputName = (List.head splits).inputName;
+      offset = (List.last splits).offset;
       hasInput = parts.prefix == "" && inputName != null;
       hasOffset = parts.suffix == "" && offset != null;
-      components' = if hasInput then list.tail parts.strings else parts.strings;
-      components = if hasOffset then list.init components' else components';
+      components' = if hasInput then List.tail parts.strings else parts.strings;
+      components = if hasOffset then List.init components' else components';
       result = {
         inherit inputName offset components;
       };
     in ArgDesc.new {
       inherit name;
       inherit (if parts.hasSplits then result else fastpath) inputName offset components;
-      fallback = if opt then optional.nothing else null;
+      fallback = if opt then Opt.nothing else null;
     };
 
     withConfig = {
@@ -55,56 +55,56 @@ in {
     , config ? { }
     }: ArgDesc.new {
       inherit name;
-      fallback = if config ? fallback then optional.just config.fallback else null;
+      fallback = if config ? fallback then Opt.just config.fallback else null;
       components = config.components or null;
       inputName = config.input or null;
       offset = config.offset or null;
     };
 
-    inputName = arg: optional.fromNullable arg.inputName;
-    offset = arg: nullable.match arg.offset {
-      just = function.id;
+    inputName = arg: Opt.fromNullable arg.inputName;
+    offset = arg: Null.match arg.offset {
+      just = Fn.id;
       nothing = Offset.Default;
     };
-    fallback = arg: optional.fromNullable arg.fallback;
-    fallbackValue = arg: optional.monad.join (ArgDesc.fallback arg);
+    fallback = arg: Opt.fromNullable arg.fallback;
+    fallbackValue = arg: Opt.monad.join (ArgDesc.fallback arg);
 
-    components = arg: nullable.match arg.components {
+    components = arg: Null.match arg.components {
       nothing = [ arg.name ];
-      just = function.id;
+      just = Fn.id;
     };
 
-    displayName = arg: nullable.match arg.components {
-      just = list.last;
+    displayName = arg: Null.match arg.components {
+      just = List.last;
       nothing = arg.name;
     };
 
     isOptional = arg: arg.fallback != null;
 
     # resolveValue :: ArgDesc -> Optional x -> Optional (Optional x)
-    resolveValue = arg: value: optional.match value {
-      just = value: optional.just (optional.just value);
+    resolveValue = arg: value: Opt.match value {
+      just = value: Opt.just (Opt.just value);
       nothing = ArgDesc.fallback arg;
     };
 
     # setFrom :: ArgDesc -> ArgDesc -> ArgDesc
     setFrom = arg: new_arg: let
-      new' = set.retain [ "fallback" "inputName" "offset" "components" ] new_arg;
-    in arg // set.filter (_: v: v != null) new';
+      new' = Set.retain [ "fallback" "inputName" "offset" "components" ] new_arg;
+    in arg // Set.filter (_: v: v != null) new';
 
     describe = arg: let
       name = ArgDesc.displayName arg;
-      inputName = nullable.functor.map (i: "${i}'") arg.inputName;
-      offset = nullable.functor.map (o: "'${o}") arg.offset;
+      inputName = Null.map (i: "${i}'") arg.inputName;
+      offset = Null.map (o: "'${o}") arg.offset;
       components = if arg.components == [ name ] then null
-        else nullable.functor.map (c: "${string.concatSep "." c}") arg.components;
-      at = string.optional (inputName != null || components != null) "@";
-      fallback = nullable.functor.map (f: optional.match f {
+        else Null.map (c: "${Str.concatSep "." c}") arg.components;
+      at = Str.optional (inputName != null || components != null) "@";
+      fallback = Null.map (f: Opt.match f {
         just = f: " ? ${f}";
         nothing = "?";
       }) arg.fallback;
       desc = [ name offset at inputName components fallback ];
-    in string.concat (list.filter (v: v != null) desc);
+    in Str.concat (List.filter (v: v != null) desc);
 
     semigroup = {
       append = a: b: ArgDesc.setFrom a b;
@@ -130,40 +130,40 @@ in {
     configData = callable: callable.fn.fl'config or { };
     configDataArgs = callable: (Callable.configData callable).args or { };
 
-    argsConfig = callable: set.map (name: config: ArgDesc.withConfig {
+    argsConfig = callable: Set.map (name: config: ArgDesc.withConfig {
       inherit name config;
     }) (Callable.configDataArgs callable);
-    argsFn = callable: set.map (name: opt: ArgDesc.parse {
+    argsFn = callable: Set.map (name: opt: ArgDesc.parse {
       inherit name opt;
       inherit (callable) inputNames;
-    }) (function.args callable.fn);
+    }) (Fn.args callable.fn);
 
     # argsFallbacks :: Callable -> { string => a }
     argsFallbacks = callable: let
       args = Callable.args callable;
-      fallbacks = set.mapToList (name: arg: optional.match (ArgDesc.fallbackValue arg) {
-        nothing = list.nil;
-        just = fallback: optional.match fallback {
-          nothing = list.nil;
-          just = fallback: list.singleton { _0 = name; _1 = fallback; };
+      fallbacks = Set.mapToList (name: arg: Opt.match (ArgDesc.fallbackValue arg) {
+        nothing = List.Nil;
+        just = fallback: Opt.match fallback {
+          nothing = List.Nil;
+          just = fallback: List.One { _0 = name; _1 = fallback; };
         };
       }) args;
-    in set.fromList (list.concat fallbacks);
+    in Set.fromList (List.concat fallbacks);
 
     # args :: Callable -> {ArgDesc}
     args = callable: let
       config = Callable.argsConfig callable;
       fn = Callable.argsFn callable;
       all = config // fn;
-      merge = name: fn: ((optional.semigroup ArgDesc.semigroup).append
-        (optional.just fn)
-        (set.lookup name config)
+      merge = name: fn: ((Opt.semigroup ArgDesc.semigroup).append
+        (Opt.just fn)
+        (Set.lookup name config)
       ).value;
-    in set.map merge all;
+    in Set.map merge all;
 
     callWith = callable: {
       implicitArgs ? { }
-    }: function.copyArgs callable.fn {
+    }: Fn.copyArgs callable.fn {
       inherit callable;
       implicitArgs = Callable.argsFallbacks callable // implicitArgs;
       __functor = self: { ... }@args: self.callable.fn (self.implicitArgs // args);
@@ -171,10 +171,10 @@ in {
 
     call = callable: Callable.callWith callable { };
 
-    argNames = callable: set.map (name: optional: ArgDesc.parse {
+    argNames = callable: Set.map (name: optional: ArgDesc.parse {
       inherit name;
       inherit (callable) inputNames;
-    }) (function.args callable.fn);
+    }) (Fn.args callable.fn);
   };
 
   Injectable = {
