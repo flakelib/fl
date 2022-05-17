@@ -10,6 +10,7 @@ in {
 , packages ? null, defaultPackage ? null, legacyPackages ? null
 , checks ? null, hydraJobs ? null
 , apps ? null, defaultApp ? null
+, bundlers ? null, defaultBundler ? null
 , devShells ? null, devShell ? null
 , lib ? null, builders ? null
 , overlays ? null, overlay ? null

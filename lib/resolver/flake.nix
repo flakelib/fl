@@ -133,12 +133,13 @@ in {
     FlOutput = "flakes";
     StaticAttrs = [ "lib" "overlays" "overlay" "nixosModules" "nixosModule" "nixosConfigurations" "templates" "defaultTemplate" ];
     NativeAttrs = FlakeInput.NativePackageAttrs ++ FlakeInput.NativePackageSetAttrs;
-    NativePackageAttrs = [ "defaultPackage" "defaultApp" "devShell" ];
+    NativePackageAttrs = [ "defaultPackage" "defaultApp" "devShell" "defaultBundler" ];
     NativePackageSetAttrs = [
       "packages" "legacyPackages"
       "devShells"
       "checks"
       "apps"
+      "bundlers"
     ];
     FlNativeAttrs = FlakeInput.FlNativePackageSetAttrs ++ FlakeInput.FlNativePackageAttrs;
     FlNativePackageSetAttrs = [ "builders" ];
