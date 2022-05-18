@@ -26,7 +26,7 @@ in {
       systems = Set.map (_: BuildConfig.serialize) call.buildConfigs;
       import = { buildConfig }: (CallFlake.self call) // (Context.outputs (Context.byBuildConfig (CallFlake.staticContext call) buildConfig));
       impure = (CallFlake.flOutput call).import {
-        context = Context.new {
+        context = Context.New {
           inherit call;
           buildConfig = BuildConfig.Impure;
         };
@@ -38,7 +38,7 @@ in {
       inherit (call) config;
     };
     args = call: call.args;
-    staticContext = call: Context.new { inherit call; };
+    staticContext = call: Context.New { inherit call; };
     nativeContexts = call: Set.map (_: Context.byBuildConfig (CallFlake.staticContext call)) call.buildConfigs;
     contextOutputs = call: Set.map (_: Context.outputs) (CallFlake.nativeContexts call);
     staticOutputs = call: Set.retain FlakeInput.StaticAttrs (Context.outputs (CallFlake.staticContext call));
@@ -551,88 +551,5 @@ in {
     }.${InputConfig.flType inputConfig} or false;
 
     UnknownName = "<<UnknownInput>>";
-  };
-
-  BuildConfig = {
-    TypeId = "fl:BuildConfig";
-    new = {
-      localSystem
-    , crossSystem ? null
-    , name ? null
-    }: {
-      type = BuildConfig.TypeId;
-      localSystem = System localSystem;
-      crossSystem = Null.map System crossSystem;
-      inherit name;
-    };
-
-    __functor = BuildConfig: arg:
-      if BuildConfig.check arg then arg
-      else if arg ? localSystem then BuildConfig.new arg
-      else BuildConfig.Native arg;
-
-    Native = localSystem: BuildConfig.new { inherit localSystem; };
-
-    Impure = Null.match builtins.currentSystem or null {
-      just = localSystem: BuildConfig.new {
-        inherit localSystem;
-      };
-      nothing = throw "BuildConfig.Impure cannot be used in pure evaluation";
-    };
-
-    localSystem = bc: bc.localSystem;
-    crossSystem = bc: Opt.fromNullable bc.crossSystem;
-
-    isNative = bc: bc.crossSystem == null;
-
-    localDouble = bc: System.double bc.localSystem;
-    crossDouble = bc: Null.map System.double bc.crossSystem;
-
-    nativeSystem = bc: Bool.toOptional (BuildConfig.isNative bc) bc.localSystem;
-    buildSystem = BuildConfig.localSystem;
-
-    hostSystem = bc: Null.match bc.crossSystem {
-      just = Fn.id;
-      nothing = bc.localSystem;
-    };
-    hostDouble = bc: System.double (BuildConfig.hostSystem bc);
-
-    approxEquals = bc: rhs: BuildConfig.localDouble bc == BuildConfig.localDouble rhs && BuildConfig.crossDouble bc == BuildConfig.crossDouble rhs;
-
-    attrName = bc: let
-      local = System.attrName bc.localSystem;
-    in Null.match bc.name {
-      just = Fn.id;
-      nothing = Null.match bc.crossSystem {
-        just = crossSystem: "${System.attrName crossSystem}/${local}";
-        nothing = local;
-      };
-    };
-
-    byOffset = bc: offset: {
-      ${Offset.None} = bc;
-      ${Offset.Build} = BuildConfig.new {
-        inherit (bc) localSystem;
-      };
-      ${Offset.Target} = BuildConfig.new {
-        localSystem = bc.crossSystem;
-      };
-    }.${offset};
-
-    serialize = bc: let
-      localSystem = System.serialize bc.localSystem;
-    in Null.match bc.crossSystem {
-      just = cross: {
-        inherit localSystem;
-        crossSystem = System.serialize bc.crossSystem;
-      };
-      nothing = localSystem;
-    };
-
-    check = bc: bc.type or null == BuildConfig.TypeId;
-    describe = bc: let
-      local = System.describe bc.localSystem;
-      cross = System.describe bc.crossSystem;
-    in if BuildConfig.isNative bc then local else "${cross}:${local}";
   };
 }

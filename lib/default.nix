@@ -1,20 +1,15 @@
 { self, std }@inputs: {
   System = import ./system.nix inputs;
+  BuildConfig = import ./buildconfig.nix inputs;
+  Callable = import ./callable.nix inputs;
+  Injectable = import ./injectable.nix inputs;
 
-  inherit (import ./resolver/context.nix inputs)
-    Context ScopedContext;
+  Context = import ./context.nix inputs;
 
-  inherit (import ./resolver/flake.nix inputs)
-    BuildConfig
+  inherit (import ./flake.nix inputs)
     FlakeInput FlConfig FlData FlakeType
     InputConfig FlakeImporters
     CallFlake InputOutputs ImportMethod QueryScope;
-
-  inherit (import ./resolver/resolver.nix inputs)
-    Callable ArgDesc Offset;
-
-  inherit (import ./resolver/util.nix inputs)
-    Regex;
 
   callFlake = import ./callflake.nix inputs;
 }
