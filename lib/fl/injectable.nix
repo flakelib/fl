@@ -1,6 +1,6 @@
 { self, std }: let
   inherit (std.lib) Ty Rec;
-  inherit (self.lib) Injectable;
+  inherit (self.lib.Fl) Injectable;
 in Rec.Def {
   name = "fl:Injectable";
   Self = Injectable;

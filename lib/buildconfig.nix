@@ -1,13 +1,13 @@
 { self, std }: let
   inherit (std.lib) Ty Rec List Set Fn Bool Null Opt;
-  inherit (self.lib) BuildConfig Callable;
-  inherit (Callable) Offset;
+  inherit (self.lib) BuildConfig Fl;
+  inherit (Fl.Callable) Offset;
   System = std.lib.System // self.lib.System;
 in Rec.Def {
   name = "fl:BuildConfig";
   Self = BuildConfig;
   coerce.${toString System.TypeId} = BuildConfig.Native;
-  coerce.${Ty.attrs.name} = BuildConfig.New;
+  coerce.${Ty.attrs.name} = BuildConfig.Deserialize;
   coerce.${Ty.string.name} = s: BuildConfig.Native (System s);
   fields = {
     name = {
@@ -78,6 +78,12 @@ in Rec.Def {
     inherit name crossSystem localSystem;
   };
   Native = localSystem: BuildConfig.New { inherit localSystem; };
+
+  Deserialize = { name ? null, localSystem, crossSystem ? null }: BuildConfig.New {
+    inherit name;
+    localSystem = System localSystem;
+    crossSystem = Null.map System crossSystem;
+  };
 
   Impure = Null.match builtins.currentSystem or null {
     just = localSystem: BuildConfig.New {

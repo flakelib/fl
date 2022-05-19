@@ -1,9 +1,7 @@
 { self, std }: let
   inherit (std.lib) Set List;
-  inherit (self.lib)
-    BuildConfig System
-    Inputs FlakeInput
-    CallFlake Context;
+  inherit (self.lib) Fl BuildConfig;
+  System = std.lib.System // self.lib.System;
 in {
   inputs
 , packages ? null, defaultPackage ? null, legacyPackages ? null
@@ -19,7 +17,7 @@ in {
 , systems ? System.Supported.tier2
 , config ? { }
 }@args: let
-  call = CallFlake.new {
+  call = Fl.Desc.New {
     inherit inputs config;
     buildConfigs = if builtins.isList systems
       then Set.fromList (List.map (system: let
@@ -28,4 +26,4 @@ in {
       else Set.map (_: BuildConfig) systems;
     args = Set.without [ "systems" "config" "inputs" ] args;
   };
-in CallFlake.filteredOutputs call
+in Fl.Desc.filteredOutputs call

@@ -1,19 +1,16 @@
 { self, std }: let
   inherit (std.lib) Ty Rec Str Bool List Set Fn Opt;
-  inherit (self.lib)
-    QueryScope
-    Callable
-    CallFlake Context
-    BuildConfig System
-    FlakeInput InputConfig FlConfig
-    InputOutputs;
+  inherit (self.lib) Fl BuildConfig System;
+  inherit (Fl) Context Desc Callable InputOutputs;
   inherit (Callable) ArgDesc Offset;
   inherit (Context) ScopedContext;
+  inherit (InputOutputs) QueryScope;
+  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
 in Rec.Def {
   name = "fl:Context";
   Self = Context;
   fields = {
-    call.type = CallFlake.TypeId.ty;
+    desc.type = Desc.TypeId.ty;
     buildConfig.type = BuildConfig.TypeId.ty;
     inputOutputs = {
       type = Ty.any;
@@ -26,13 +23,13 @@ in Rec.Def {
     just = buildConfig:
       if Context.isNative context then context
       else Context.New {
-        inherit (context) call;
+        inherit (context) desc;
         buildConfig = BuildConfig.byOffset buildConfig offset;
       };
   };
 
   fn.byBuildConfig = context: buildConfig: Context.New {
-    inherit (context) call;
+    inherit (context) desc;
     inherit buildConfig;
   };
 
@@ -40,12 +37,12 @@ in Rec.Def {
     inherit context;
   } // args);
 
-  fn.callArgsFor = context: path: Set.atOr { } path (FlConfig.callArgs (FlakeInput.flConfig (CallFlake.flConfig context.call)));
+  fn.callArgsFor = context: path: Set.atOr { } path (Fl.Config.callArgs (Outputs.flConfig (Desc.flConfig context.desc)));
 
   fn.isNative = context: Opt.isJust (Context.buildConfig context) && BuildConfig.isNative context.buildConfig;
   fn.orderedInputOutputs = context: List.map (name:
     Set.get name context.inputOutputs
-  ) (CallFlake.orderedInputNames context.call);
+  ) (Desc.orderedInputNames context.desc);
   fn.orderedOutputs = context: List.map (io: InputOutputs.outputs io) (Context.orderedInputOutputs context);
 
   fn.buildConfig = context: Opt.fromNullable context.buildConfig;
@@ -55,23 +52,24 @@ in Rec.Def {
 
   fn.inputByName = context: inputName: Set.lookup inputName context.flakes;
 
-  fn.globalScope = context: {
+  fn.globalScope.fn = context: {
     inherit context;
     inherit (context) buildConfig;
-    callPackage = Context.callPackage context;
-    callPackages = Context.callPackages context;
-    callPackageSet = Context.callPackageSet context;
-    inputs = CallFlake.flakeInputs context.call;
+    inherit (context.desc) inputs;
+    callPackage = ScopedContext.callPackage (Context.scopeFor context { });
+    callPackages = ScopedContext.callPackages (Context.scopeFor context { });
+    callPackageSet = ScopedContext.callPackageSet (Context.scopeFor context { });
     outputs = InputOutputs.outputs context.inputOutputs.self;
     pkgs = InputOutputs.MergeScopes (List.map (io: InputOutputs.namespacedPkgs io) (Context.orderedInputOutputs context));
     lib = InputOutputs.MergeScopes (List.map (io: InputOutputs.namespacedLib io) (Context.orderedInputOutputs context));
     buildPackages = (ScopedContext.global (Context.scopeFor (Context.byOffset context Offset.Build) {})).pkgs;
     targetPackages = (ScopedContext.global (Context.scopeFor (Context.byOffset context Offset.Target) {})).pkgs;
   };
+  fn.globalScope.memoize = true;
 
   fn.outputs = context: let
-    args = CallFlake.args context.call;
-    packageSets = Set.retain (FlakeInput.NativePackageSetAttrs ++ FlakeInput.FlNativePackageSetAttrs) args;
+    args = Desc.args context.desc;
+    packageSets = Set.retain (Outputs.NativePackageSetAttrs ++ Outputs.FlNativePackageSetAttrs) args;
     attrOf = name: Bool.toNullable (args ? ${name}) name;
     scoped = Context.scopeFor context {
       inherit outputs;
@@ -87,8 +85,8 @@ in Rec.Def {
     mapDefault = defaults: fn: default: if Ty.string.check default
       then defaults.${default} or (throw "TODO: couldn't find default ${default}")
       else fn default;
-    staticAttrs = Set.retain FlakeInput.StaticAttrs args // {
-      flakes = CallFlake.flOutput context.call;
+    staticAttrs = Set.retain Outputs.StaticAttrs args // {
+      flakes = Desc.flOutput context.desc;
       ${attrOf "lib"} = ScopedContext.callPackageSet (Context.scopeFor context {
         inherit outputs;
         scope = QueryScope.Lib;
@@ -107,28 +105,28 @@ in Rec.Def {
   in outputs;
 
   show = context: let
-    self = CallFlake.describe context.call;
+    self = Desc.show context.desc;
     bc = Opt.match (Context.buildConfig context) {
       just = bc: "(${BuildConfig.show bc})";
       nothing = "";
     };
   in "${self}${bc}";
 } // {
-  # New :: set -> Context { buildConfig :: BuildConfig?, call :: CallFlake }
+  # New :: set -> Context { buildConfig :: BuildConfig?, desc :: Desc }
   New = {
-    call
+    desc
   , buildConfig ? null
   }: let
-    inputConfigs = CallFlake.inputConfigs call;
-    context = {
-      inherit call buildConfig;
-      inputOutputs = Set.map (name: flakeInput: InputOutputs.new rec {
-        inherit context flakeInput;
+    inputConfigs = Desc.inputConfigs desc;
+    context = Context.TypeId.new {
+      inherit desc buildConfig;
+      inputOutputs = Set.map (name: outputs: InputOutputs.New rec {
+        inherit context outputs;
         inputConfig = inputConfigs.${name};
-        importMethod = Opt.toNullable (InputConfig.importMethod inputConfig);
-      }) (CallFlake.filteredInputs call);
+        importMethod = Opt.toNullable (Fl.Config.Input.importMethod inputConfig);
+      }) (Desc.filteredInputs desc);
     };
-  in Context.TypeId.new context;
+  in context;
 
   ScopedContext = Rec.Def {
     name = "fl:Context.ScopedContext";
@@ -208,7 +206,7 @@ in Rec.Def {
     fn.query = scoped: { arg }: Opt.match (ArgDesc.inputName arg) {
       just = inputName: ScopedContext.queryInput scoped {
         inherit arg;
-        inputName = Opt.match (CallFlake.canonicalizeInputName scoped.context.call inputName) {
+        inputName = Opt.match (Desc.canonicalizeInputName scoped.context.desc inputName) {
           just = Fn.id;
           nothing = throw "Input ${inputName} not found for ${ArgDesc.show arg} in ${ScopedContext.show scoped}";
         };
@@ -222,7 +220,7 @@ in Rec.Def {
       inherit (scoped) context;
       callable = Callable.New {
         inherit fn;
-        inputNames = CallFlake.allInputNames context.call;
+        inputNames = Desc.allInputNames context.desc;
       };
       autofill = name: arg: let
         nothing = throw "could not find ${ArgDesc.show arg} while evaluating ${ScopedContext.show scoped}";
@@ -275,7 +273,7 @@ in Rec.Def {
 
     fn.callPackageSet = scoped: target: overrides: let
       target'fn = if Ty.function.check target || Ty.attrs.check target then target else import target;
-      overridesFor = component: { }; # TODO: get from FlConfig?
+      overridesFor = component: { }; # TODO: get from Fl.Config?
     in if Ty.function.check target'fn then ScopedContext.callFn scoped target'fn overrides
     else if Ty.attrs.check target'fn then ScopedContext.callPackages scoped target overrides
     else throw "Expected package set when evaluating ${ScopedContext.show scoped}";

@@ -1,6 +1,6 @@
 { self, std }: let
   inherit (std.lib) Rec Enum Regex Str List Set Opt Null Fn Ty;
-  inherit (self.lib) Callable;
+  inherit (self.lib.Fl) Callable;
   inherit (Callable) ArgDesc Offset;
 in Rec.Def {
   name = "fl:Callable";

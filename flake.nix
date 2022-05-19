@@ -11,11 +11,11 @@
         name = "flakelib";
         inputs = {
           std = {
-            type = self.lib.FlakeType.Lib;
+            type = self.lib.Fl.Type.Lib;
             lib.namespace = [ ];
           };
           fl-config = {
-            type = self.lib.FlakeType.ConfigV0;
+            type = self.lib.Fl.Type.ConfigV0;
           };
         };
       };
