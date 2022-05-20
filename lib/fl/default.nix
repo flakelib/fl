@@ -14,6 +14,7 @@ in {
   Callable = import ./callable.nix inputs;
   Injectable = import ./injectable.nix inputs;
   InputOutputs = import ./io.nix inputs;
+  ImportMethod = import ./import.nix inputs;
 
   Type = Enum.Def {
     name = "fl:Fl.Type";
@@ -41,62 +42,6 @@ in {
     }.${flakeType} or true;
 
     Default = Fl.Type.Flake;
-  };
-
-  ImportMethod = Enum.Def {
-    name = "fl:ImportMethod";
-    Self = ImportMethod;
-    var = {
-      DefaultImport = "default.nix";
-      FlImport = "flakes.import";
-      Native = "localSystem";
-      Pure = "pure";
-      Self = "self";
-    };
-  } // {
-    Default = ImportMethod.Native;
-
-    supportsInput = importMethod: { outputs, inputConfig, buildConfig ? null }: let
-      flType = Fl.Config.Input.flType inputConfig;
-      eager = Fl.Config.Input.eagerEval inputConfig;
-      isFlake = Fl.Type.isFlake flType;
-    in {
-      ${ImportMethod.Self} = Fl.Config.Input.isSelf inputConfig;
-      ${ImportMethod.Pure} = isFlake;
-      ${ImportMethod.Native} = isFlake && (buildConfig == null || Outputs.hasNative outputs buildConfig);
-      ${ImportMethod.FlImport} = flType == Fl.Type.Fl || Opt.isJust (Outputs.flData outputs);
-      #${ImportMethod.DefaultImport} = Opt.isJust (Outputs.defaultImportPath outputs);
-      ${ImportMethod.DefaultImport} = Opt.isJust (Fl.Config.Input.defaultImport inputConfig);
-    }.${importMethod} or false;
-
-    select = {
-      outputs ? null
-    , inputConfig ? null
-    , buildConfig ? null
-    }: let
-      preference = List.One ImportMethod.Self ++ (if buildConfig == null then [
-        ImportMethod.Pure ImportMethod.DefaultImport
-      ] else [
-        ImportMethod.Native ImportMethod.FlImport ImportMethod.DefaultImport ImportMethod.Pure
-      ]);
-      first = List.findIndex (importMethod: Null.match inputConfig {
-        just = inputConfig: ImportMethod.supportsInput importMethod {
-          inherit inputConfig outputs buildConfig;
-        };
-        nothing = true;
-      }) preference;
-      input'desc = Null.match inputConfig {
-        just = Fl.Config.Input.inputName;
-        nothing = Fl.Config.Input.UnknownName;
-      };
-      bc'desc = Null.match buildConfig {
-        just = bc: ".${BuildConfig.show bc}";
-        nothing = "";
-      };
-    in Opt.match first {
-      nothing = throw "Failed to select ImportMethod for ${input'desc}${bc'desc}";
-      just = List.index preference;
-    };
   };
 
   Data = Rec.Def {

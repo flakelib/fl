@@ -37,20 +37,12 @@ in Rec.Def {
     inherit context;
   } // args);
 
-  fn.callArgsFor = context: path: Set.atOr { } path (Fl.Config.callArgs (Outputs.flConfig (Desc.flConfig context.desc)));
-
   fn.isNative = context: Opt.isJust (Context.buildConfig context) && BuildConfig.isNative context.buildConfig;
   fn.orderedInputOutputs = context: List.map (name:
     Set.get name context.inputOutputs
   ) (Desc.orderedInputNames context.desc);
-  fn.orderedOutputs = context: List.map (io: InputOutputs.outputs io) (Context.orderedInputOutputs context);
 
   fn.buildConfig = context: Opt.fromNullable context.buildConfig;
-
-  fn.orderedInputNames = context:
-    List.One "self" ++ Set.keys (Set.without [ "self" ] context.flakes);
-
-  fn.inputByName = context: inputName: Set.lookup inputName context.flakes;
 
   fn.globalScope.fn = context: {
     inherit context;
@@ -67,43 +59,6 @@ in Rec.Def {
   };
   fn.globalScope.memoize = true;
 
-  fn.outputs = context: let
-    args = Desc.args context.desc;
-    packageSets = Set.retain (Outputs.NativePackageSetAttrs ++ Outputs.FlNativePackageSetAttrs) args;
-    attrOf = name: Bool.toNullable (args ? ${name}) name;
-    scoped = Context.scopeFor context {
-      inherit outputs;
-      scope = QueryScope.Packages;
-      path = [ ];
-    };
-    callPackageAt = attrName: target: ScopedContext.callPackage (
-      ScopedContext.push scoped [ attrName (BuildConfig.attrName context.buildConfig) ]
-    ) target (Context.callArgsFor context [ attrName ]);
-    callPackageSetAt = attrName: target: ScopedContext.callPackageSet (
-      ScopedContext.push scoped [ attrName (BuildConfig.attrName context.buildConfig) ]
-    ) target (Context.callArgsFor context [ attrName ]);
-    mapDefault = defaults: fn: default: if Ty.string.check default
-      then defaults.${default} or (throw "TODO: couldn't find default ${default}")
-      else fn default;
-    staticAttrs = Set.retain Outputs.StaticAttrs args // {
-      flakes = Desc.flOutput context.desc;
-      ${attrOf "lib"} = ScopedContext.callPackageSet (Context.scopeFor context {
-        inherit outputs;
-        scope = QueryScope.Lib;
-        path = [ "lib" ];
-      }) args.lib (Context.callArgsFor context [ "lib" ]);
-      ${attrOf "overlay"} = mapDefault outputs.overlays Fn.id args.overlay;
-      ${attrOf "nixosModule"} = mapDefault outputs.nixosModules Fn.id args.nixosModule;
-      ${attrOf "defaultTemplate"} = mapDefault outputs.templates Fn.id args.defaultTemplate;
-      ${attrOf "defaultPackage"} = mapDefault outputs.packages (callPackageAt "defaultPackage") args.defaultPackage;
-      ${attrOf "defaultApp"} = mapDefault outputs.apps (callPackageAt "defaultApp") args.defaultApp;
-      ${attrOf "devShell"} = mapDefault outputs.devShells (callPackageAt "devShell") args.devShell;
-      # TODO: builders
-    };
-    nativeAttrs = Set.map callPackageSetAt packageSets;
-    outputs = staticAttrs // nativeAttrs;
-  in outputs;
-
   show = context: let
     self = Desc.show context.desc;
     bc = Opt.match (Context.buildConfig context) {
@@ -117,14 +72,9 @@ in Rec.Def {
     desc
   , buildConfig ? null
   }: let
-    inputConfigs = Desc.inputConfigs desc;
     context = Context.TypeId.new {
       inherit desc buildConfig;
-      inputOutputs = Set.map (name: outputs: InputOutputs.New rec {
-        inherit context outputs;
-        inputConfig = inputConfigs.${name};
-        importMethod = Opt.toNullable (Fl.Config.Input.importMethod inputConfig);
-      }) (Desc.filteredInputs desc);
+      inputOutputs = Desc.contextualInputOutputs desc context;
     };
   in context;
 

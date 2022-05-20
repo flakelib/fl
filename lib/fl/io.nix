@@ -1,5 +1,5 @@
 { self, std }: let
-  inherit (std.lib) Rec Enum Ty List Set Fn Null Opt;
+  inherit (std.lib) Rec Enum Ty Set Fn Null Opt;
   inherit (self.lib) Fl BuildConfig;
   inherit (Fl) Context InputOutputs;
   inherit (InputOutputs) QueryScope;
@@ -7,17 +7,13 @@
 in Rec.Def {
   name = "fl:Fl.InputOutputs";
   fields = {
-    outputs.type = Outputs.TypeId.ty;
+    outputsData.type = Ty.attrs;
     inputConfig.type = Fl.Config.Input.TypeId.ty;
-    context.type = Fl.Context.TypeId.ty;
-    importMethod.type = Fl.ImportMethod.TypeId.ty;
+    flConfig.type = Fl.Config.TypeId.ty;
   };
 
-  fn.outputs = io: InputOutputs.Importer.${io.importMethod} {
-    inherit (io) outputs inputConfig context;
-  };
+  fn.outputs = io: io.outputsData;
 
-  # TODO: merge a list of InputOutputs
   fn.pkgs = io: let
     outputs = InputOutputs.outputs io;
   in InputOutputs.MergeScopes [
@@ -36,35 +32,42 @@ in Rec.Def {
     namespace = {
       ${QueryScope.Packages} = Opt.match (Fl.Config.Input.pkgsNamespace io.inputConfig) {
         just = Fn.id;
-        nothing = Fl.Config.pkgsNamespace (Outputs.flConfig io.outputs);
+        nothing = Fl.Config.pkgsNamespace io.flConfig;
       };
       ${QueryScope.Lib} = Opt.match (Fl.Config.Input.libNamespace io.inputConfig) {
         just = Fn.id;
-        nothing = Fl.Config.libNamespace (Outputs.flConfig io.outputs);
+        nothing = Fl.Config.libNamespace io.flConfig;
       };
     }.${scope} or (throw "Unknown namespace scope ${toString scope}");
   in Set.assignAt namespace target { };
 
-  show = io: let
-    buildConfig = Null.match io.buildConfig or null {
-      just = bc: ".${BuildConfig.show bc}";
-      nothing = "";
-    };
-  in "${Fl.Config.Input.inputName io.inputConfig}.outputs/${io.importMethod}${buildConfig}";
+  show = io: "${Fl.Config.Input.inputName io.inputConfig}.outputs";
 } // {
   New = {
+    outputsData
+  , inputConfig ? Fl.Config.Input.Unknown
+  , flConfig ? Fl.Config.Default
+  }: InputOutputs.TypeId.new {
+    inherit outputsData inputConfig flConfig;
+  };
+
+  Import = {
     outputs
   , inputConfig
-  , context
-  , importMethod ? null
-  }: InputOutputs.TypeId.new {
-    inherit outputs inputConfig context;
-    importMethod = Null.match importMethod {
+  , buildConfig
+  , importMethod ? Opt.toNullable (Fl.Config.Input.importMethod inputConfig)
+  }: let
+    selectedMethod = Null.match importMethod {
       just = Fn.id;
       nothing = Fl.ImportMethod.select {
-        inherit inputConfig outputs;
-        inherit (context) buildConfig;
+        inherit inputConfig outputs buildConfig;
       };
+    };
+  in InputOutputs.New {
+    inherit inputConfig;
+    flConfig = Outputs.flConfig outputs;
+    outputsData = Fl.ImportMethod.import selectedMethod {
+      inherit outputs inputConfig buildConfig;
     };
   };
 
@@ -74,26 +77,6 @@ in Rec.Def {
       else if Ty.function.check v then Opt.just (Fn.toSet v)
       else Opt.nothing;
     sets = scopes;
-  };
-
-  Importer = {
-    # TODO: make these attrs lazy, also expose `extraOutputs` for unknown attrs
-    ${Fl.ImportMethod.DefaultImport} = { outputs, inputConfig, context }: (Fl.Config.Input.defaultImport inputConfig).value {
-      inherit outputs inputConfig;
-      inherit (context) buildConfig;
-    };
-
-    # TODO: inputConfig should be able to shape the Desc/Context in some way
-    ${Fl.ImportMethod.FlImport} = { outputs, inputConfig, context }: let
-    in outputs.${Fl.Data.OutputName}.import { inherit (context) buildConfig; };
-
-    # TODO: inputConfig should shape buildConfig resolution in some way
-    ${Fl.ImportMethod.Native} = { outputs, inputConfig, context }: outputs
-      // Outputs.nativeOutputs outputs { inherit (context) buildConfig; };
-
-    ${Fl.ImportMethod.Pure} = { outputs, inputConfig, context }: Outputs.staticOutputs outputs;
-
-    ${Fl.ImportMethod.Self} = { outputs, inputConfig, context }: outputs // Context.outputs context;
   };
 
   QueryScope = Enum.Def {

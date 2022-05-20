@@ -54,7 +54,7 @@ in {
   nativeSystemNames = fi: Set.keys (Outputs.nativeBuildConfigs fi);
 
   nativeOutputs = fi: { buildConfig }: let
-    nativeBuilders = Set.retain Outputs.FlNativeAttrs fi.flakes or { };
+    nativeBuilders = Set.retain Outputs.FlNativeAttrs fi.flakes.outputs or { };
     nativeAttrs = Set.retain Outputs.NativeAttrs fi // nativeBuilders;
     error = name: throw "flake input ${Outputs.show fi} is missing output ${name} for ${BuildConfig.show buildConfig}";
     mapAttr = name: attr: attr.${BuildConfig.attrName buildConfig} or (error name);
@@ -62,7 +62,7 @@ in {
 
   outputs = fi: { buildConfig ? null }: let
     nativeOutputs = Null.match buildConfig {
-      just = buildConfig: Outputs.nativeOutputs { inherit buildConfig; };
+      just = buildConfig: Outputs.nativeOutputs fi { inherit buildConfig; };
       nothing = { };
     };
   in fi // nativeOutputs;
