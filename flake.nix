@@ -2,7 +2,7 @@
   description = "nix flakes infrastructure";
   inputs = {
     std.url = "github:flakelib/std";
-    fl-config.url = "./config";
+    fl-config.url = "github:flakelib/fl/config";
   };
   outputs = { self, std, ... }@inputs: let
     flake = self {

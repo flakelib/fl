@@ -2,14 +2,18 @@
   "nodes": {
     "fl-config": {
       "locked": {
-        "lastModified": 1,
+        "lastModified": 1653159448,
         "narHash": "sha256-PvB9ha0r4w6p412MBPP71kS/ZTBnOjxL0brlmyucPBA=",
-        "path": "/nix/store/inmn6k9a80zbb70kk6jkbmwa00a9aazm-source/config",
-        "type": "path"
+        "owner": "flakelib",
+        "repo": "fl",
+        "rev": "fcefb9738d5995308a24cda018a083ccb6b0f460",
+        "type": "github"
       },
       "original": {
-        "path": "/nix/store/inmn6k9a80zbb70kk6jkbmwa00a9aazm-source/config",
-        "type": "path"
+        "owner": "flakelib",
+        "ref": "config",
+        "repo": "fl",
+        "type": "github"
       }
     },
     "nix-std": {
