@@ -11,5 +11,5 @@ in {
     inherit tier1 tier2 tier3;
   };
 
-  attrName = system: System.double system;
+  attrName = system: system.name or (System.double system);
 }
