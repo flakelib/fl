@@ -6,6 +6,7 @@
   argKeys = [ "systems" "config" "outputs" "inputs" ];
   defaultKeys = Set.keys defaultMap;
   defaultMap = {
+    defaultPackage = "packages";
     defaultApp = "apps";
     defaultBundler = "bundlers";
     defaultTemplate = "templates";
