@@ -129,7 +129,7 @@ in Rec.Def {
       nixosConfigurations = Type.NixosConfigurations;
       templates = Type.Templates;
     };
-    tryImport = v: if Ty.pathlike.check v then import v else v;
+    tryImport = v: if Ty.path.check v then import v else v;
   in Rec.Def {
     name = "fl:Fl.Desc.Output";
     Self = Output;
