@@ -15,10 +15,10 @@ in Rec.Def {
       default = null;
     };
     crossSystem = {
-      type = Ty.nullOr System.TypeId.type;
+      type = Ty.nullOr System.TypeId.ty;
       default = null;
     };
-    localSystem.type = System.TypeId.type;
+    localSystem.type = System.TypeId.ty;
   };
   show = bc: let
     local = System.show bc.localSystem;

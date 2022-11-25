@@ -333,6 +333,8 @@ in Rec.Def {
         in ScopedContext.callPackage scoped value (Output.callOverrides output);
       };
 
+      Template = Type.Attrs; # TODO: { path = "<store-path>"; description = ""; }
+
       ForName = name: namedTypes.${name} or Type.Attrs;
     };
   };
