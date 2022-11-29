@@ -1,12 +1,13 @@
-{ self, std }@inputs: let
-  inherit (std.lib) Rec Enum Ty List Set Fn Bool Null Opt;
+{ self }@inputs: let
+  inherit (self.lib.Std)
+    Flake BuildConfig
+    Rec Enum Ty List Set Fn Bool Null Opt;
+  inherit (Flake) Outputs;
   inherit (self.lib)
-    BuildConfig
     Context
     Fl
     FlakeImporters;
   inherit (Fl) ImportMethod;
-  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
 in {
   Desc = import ./desc.nix inputs;
   Context = import ./context.nix inputs;

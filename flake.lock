@@ -43,11 +43,11 @@
         "nix-std": "nix-std"
       },
       "locked": {
-        "lastModified": 1669748596,
-        "narHash": "sha256-y6wSO0mZteqjSkMnTe993niUNnBq/ExfFk3x38+yVsM=",
+        "lastModified": 1669759267,
+        "narHash": "sha256-jBAtT8Hb9XwiW5cBDl2SmOMbRivGoi9H6t78fJUO53g=",
         "owner": "flakelib",
         "repo": "std",
-        "rev": "f50369b496aaa0861f4be73db88d16f17f400648",
+        "rev": "628acb137d798d59d638999da4e1715572f18edb",
         "type": "github"
       },
       "original": {

@@ -1,7 +1,6 @@
-{ self, std }: let
-  inherit (std.lib) Set List;
-  inherit (self.lib) Fl BuildConfig;
-  System = std.lib.System // self.lib.System;
+{ self }: let
+  inherit (self.lib.Std) BuildConfig System Set List;
+  inherit (self.lib) Fl;
 
   argKeys = [ "systems" "config" "outputs" "inputs" ];
   defaultKeys = Set.keys defaultMap;

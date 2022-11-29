@@ -1,9 +1,23 @@
-{ self, std }@inputs: {
-  System = import ./system.nix inputs;
-  BuildConfig = import ./buildconfig.nix inputs;
+{ self, std }: let
+  source = p: import p { inherit self; };
+in {
+  Std = std.lib // {
+    System = std.lib.System // self.lib.Fl.".ext.Std".System;
+    Flake = std.lib.Flake // {
+      Outputs = std.lib.Flake.Outputs // self.lib.Fl.".ext.Std".Flake.Outputs;
+    };
+    BuildConfig = std.lib.BuildConfig or { } // self.lib.BuildConfig;
+  };
 
-  Fl = import ./fl inputs;
-  Flake.Outputs = import ./outputs.nix inputs;
+  BuildConfig = source ./buildconfig.nix;
+  inherit (self.lib.Std) System;
 
-  callFlake = import ./callflake.nix inputs;
+  Fl = source ./fl // {
+    ".ext.Std" = {
+      System = source ./system.nix;
+      Flake.Outputs = source ./outputs.nix;
+    };
+  };
+
+  callFlake = source ./callflake.nix;
 }

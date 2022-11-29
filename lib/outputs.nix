@@ -1,7 +1,7 @@
-{ self, std }@inputs: let
-  inherit (std.lib) List Set Fn Null Opt;
-  inherit (self.lib) Fl BuildConfig;
-  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
+{ self }@inputs: let
+  inherit (self.lib.Std) Flake BuildConfig List Set Fn Null Opt;
+  inherit (Flake) Outputs;
+  inherit (self.lib) Fl;
 in {
   Default = {
     description = "empty flake";

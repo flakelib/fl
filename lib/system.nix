@@ -1,5 +1,5 @@
-{ self, std }: let
-  System = std.lib.System // self.lib.System;
+{ self }: let
+  inherit (self.lib.Std) System;
 in {
   Supported = let
     inherit (import ./systems.nix) doubles supported;

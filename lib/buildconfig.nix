@@ -1,8 +1,7 @@
-{ self, std }: let
-  inherit (std.lib) Ty Rec List Set Fn Bool Null Opt;
-  inherit (self.lib) BuildConfig Fl;
+{ self }: let
+  inherit (self.lib.Std) BuildConfig System Ty Rec List Set Fn Bool Null Opt;
+  inherit (self.lib) Fl;
   inherit (Fl.Callable) Offset;
-  System = std.lib.System // self.lib.System;
 in Rec.Def {
   name = "fl:BuildConfig";
   Self = BuildConfig;

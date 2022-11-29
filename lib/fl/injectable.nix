@@ -1,5 +1,5 @@
-{ self, std }: let
-  inherit (std.lib) Ty Rec;
+{ self }: let
+  inherit (self.lib.Std) Ty Rec;
   inherit (self.lib.Fl) Injectable Context Callable;
 in Rec.Def {
   name = "fl:Injectable";

@@ -1,11 +1,13 @@
-{ self, std }: let
-  inherit (std.lib) Ty Rec Str Bool List Set Fn Opt;
-  inherit (self.lib) Fl BuildConfig System;
+{ self }: let
+  inherit (self.lib.Std)
+    Flake BuildConfig System
+    Ty Rec Str Bool List Set Fn Opt;
+  inherit (Flake) Outputs;
+  inherit (self.lib) Fl;
   inherit (Fl) Context Desc Callable InputOutputs;
   inherit (Callable) ArgDesc Offset;
   inherit (Context) ScopedContext;
   inherit (InputOutputs) QueryScope;
-  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
 in Rec.Def {
   name = "fl:Context";
   Self = Context;

@@ -1,12 +1,11 @@
-{ self, std }: let
-  inherit (std.lib) Ty Rec Enum List Set Opt Fn;
-  inherit (self.lib) Fl BuildConfig;
+{ self }: let
+  inherit (self.lib.Std)
+    Flake BuildConfig
+    Ty Rec Enum List Set Opt Fn;
+  inherit (Flake) Outputs;
+  inherit (self.lib) Fl;
   inherit (Fl) Desc Context InputOutputs;
   inherit (Context) ScopedContext;
-  Flake = std.lib.Flake // {
-    Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
-  };
-  inherit (Flake) Outputs;
 in Rec.Def {
   name = "fl:Fl.Desc";
   Self = Desc;

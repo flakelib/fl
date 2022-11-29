@@ -1,5 +1,5 @@
-{ self, std }: let
-  inherit (std.lib) Rec Enum Regex Str List Set Opt Null Fn Ty;
+{ self }: let
+  inherit (self.lib.Std) Rec Enum Regex Str List Set Opt Null Fn Ty;
   inherit (self.lib.Fl) Callable;
   inherit (Callable) ArgDesc Offset;
 in Rec.Def {

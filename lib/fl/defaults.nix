@@ -1,8 +1,7 @@
-{ self, std }: let
-  inherit (std.lib) Set Opt;
+{ self }: let
+  inherit (self.lib.Std) System Set Opt;
   inherit (self.lib) Fl BuildConfig;
   inherit (Fl) Defaults;
-  System = std.lib.System // self.lib.System;
 in {
   FlakeImporters = {
     nixpkgs = { outputs, buildConfig, ... }: {

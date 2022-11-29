@@ -1,8 +1,10 @@
-{ self, std }@inputs: let
-  inherit (std.lib) Enum List Null Opt;
-  inherit (self.lib) Fl BuildConfig;
+{ self }@inputs: let
+  inherit (self.lib.Std)
+    Flake BuildConfig
+    Enum List Null Opt;
+  inherit (Flake) Outputs;
+  inherit (self.lib) Fl;
   inherit (Fl) ImportMethod;
-  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
 in Enum.Def {
   name = "fl:Fl.ImportMethod";
   Self = ImportMethod;

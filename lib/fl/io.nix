@@ -1,9 +1,11 @@
-{ self, std }: let
-  inherit (std.lib) Rec Enum Ty Set Fn Null Opt;
-  inherit (self.lib) Fl BuildConfig;
+{ self }: let
+  inherit (self.lib.Std)
+    Flake BuildConfig
+    Rec Enum Ty Set Fn Null Opt;
+  inherit (Flake) Outputs;
+  inherit (self.lib) Fl;
   inherit (Fl) Context InputOutputs;
   inherit (InputOutputs) QueryScope;
-  Outputs = std.lib.Flake.Outputs // self.lib.Flake.Outputs;
 in Rec.Def {
   name = "fl:Fl.InputOutputs";
   fields = {
