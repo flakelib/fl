@@ -1,5 +1,5 @@
-{ lib, checkAssert, callPackage, callPackageSet }: let
-in {
+{ lib, self'lib, checkAssert, callPackage, callPackageSet }: let
+in lib.Nix.SeqDeep (lib.Set.without [ "Std" ] self'lib) {
   recursive-callPackage = callPackage ({ lib }: checkAssert {
     name = "recursive-callPackage";
     cond = lib ? flakelib.callFlake;

@@ -88,6 +88,6 @@ in Rec.Def {
     just = localSystem: BuildConfig.New {
       inherit localSystem;
     };
-    nothing = throw "BuildConfig.Impure cannot be used in pure evaluation";
+    nothing = _: throw "BuildConfig.Impure cannot be used in pure evaluation";
   };
 }
