@@ -6,7 +6,7 @@
       inputs.std.follows = "std";
     };
     std.url = "github:flakelib/std";
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs = { };
   };
   outputs = { flakelib, ... }@inputs: flakelib {
     inherit inputs;

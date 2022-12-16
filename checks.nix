@@ -13,13 +13,13 @@ in lib.Nix.SeqDeep (lib.Set.without [ "Std" ] self'lib) {
     name = "optional-arg";
     cond = nonexistent == 1;
   };
-  fallback-arg = lib.Fn.toFunctor ({ checkAssert, nonexistent }: checkAssert {
+  fallback-arg = lib.Fn.toSet ({ checkAssert, nonexistent }: checkAssert {
     name = "fallback-arg";
     cond = nonexistent == 1;
   }) // {
     fl'config.args.nonexistent.fallback = 1;
   };
-  fallback-optional-arg = lib.Fn.toFunctor ({ checkAssert, nonexistent ? 1 }: checkAssert {
+  fallback-optional-arg = lib.Fn.toSet ({ checkAssert, nonexistent ? 1 }: checkAssert {
     name = "fallback-optional-arg";
     cond = nonexistent == 2;
   }) // {

@@ -1,6 +1,6 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs";
+    nixpkgs = { };
     std.url = "github:flakelib/std";
     flakelib = {
       url = "../";

@@ -7,7 +7,7 @@
     command = ''
       if [[ $CI_PLATFORM = gh-actions ]]; then
         nix registry add github:flakelib/fl path:$libPath
-        nix registry add github:NixOS/nixpkgs path:$pkgs
+        nix registry add nixpkgs path:$pkgs
       fi
       nix flake check ./${path}
     '';
