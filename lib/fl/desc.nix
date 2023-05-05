@@ -271,6 +271,7 @@ in Rec.Def {
       };
 
       Attrs = Type.AttrsOf Type.Any;
+      CallAttrs = Type.AttrsOf Type.Callable;
 
       Drvs = Type.AttrsOf Type.Drv // {
         cleaner = let
@@ -280,7 +281,7 @@ in Rec.Def {
         in { output, resolved }: Set.filter filterOutput resolved;
       };
 
-      LegacyPackages = Type.NativeOf Type.Attrs; # TODO: filter recursively?
+      LegacyPackages = Type.NativeOf Type.CallAttrs; # TODO: filter recursively?
 
       HydraJobs = Type.AttrsOf (Type.NativeOf Type.Drv) // {
         # TODO: cleaner
@@ -298,6 +299,17 @@ in Rec.Def {
       Templates = Type.AttrsOf Type.Template;
 
       Native = Type.NativeOf; # TODO: cleaner should make this contextless?
+
+      Callable = Type.New {
+        loader = {
+          output
+        , scoped
+        }: let
+          value = tryImport output.value;
+        in if Ty.function.check value
+          then ScopedContext.callPackage scoped value (Output.callOverrides output)
+          else value;
+      };
 
       Drv = Type.New {
         loader = {
