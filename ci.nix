@@ -9,7 +9,7 @@
         nix registry add github:flakelib/fl path:$libPath
         nix registry add nixpkgs path:$pkgs
       fi
-      nix flake check ./${path}
+      nix flake check --no-write-lock-file ./${path}
     '';
     impure = true;
     environment = [ "CI_PLATFORM" ];
@@ -19,9 +19,11 @@
   lib-checks = flake-check "checks" "checks";
 in {
   name = "flakes.nix";
-  ci.version = "nix2.4-broken";
-  ci.gh-actions.enable = true;
+  ci = {
+    version = "v0.6";
+    gh-actions.enable = true;
+  };
   cache.cachix.arc.enable = true;
-  channels.nixpkgs = "21.11";
+  channels.nixpkgs = "23.05";
   tasks.flakes.inputs = [ lib-check lib-checks example-check ];
 }
